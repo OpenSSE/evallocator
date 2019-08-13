@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate rand;
 extern crate rayon;
 
@@ -5,7 +7,8 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize,Ordering};
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
+
 
 fn alloc_progress<F>(n: usize, m: usize, max_len: usize, mut progress_callback: F) -> Vec<usize>
 where
