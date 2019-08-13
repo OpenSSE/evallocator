@@ -4,7 +4,6 @@ extern crate rayon;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-use std::sync::atomic::{AtomicUsize,Ordering};
 use indicatif::{ProgressBar, ProgressStyle};
 
 fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> {
@@ -44,7 +43,7 @@ fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> 
         remaining_elements -= l;
 
         if show_progress {
-            pb.set_position((n - remaining_elements) as u64);
+            pb.inc(l as u64);
         }
     }
 
@@ -88,16 +87,12 @@ fn iterated_experiment(
         pb.set_position(0);
     }
 
-    let finished_count = AtomicUsize::new(0);
-
     let results: Vec<ExperimentResult> = (0..iterations).into_par_iter()
         .map(|_| {
             let r = experiment(n, m, max_len, false);
 
-            let prev_count = finished_count.fetch_add(1,Ordering::SeqCst);
-
             if show_progress {
-                pb.set_position((prev_count + 1) as u64);
+                pb.inc(1);
             }
             r
         })
