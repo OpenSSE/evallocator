@@ -1,0 +1,9 @@
+[package]
+name = "evallocator"
+version = "0.1.0"
+authors = ["Raphael Bost <raphael_bost@alumni.brown.edu>"]
+edition = "2018"
+
+[dependencies]
+num-integer = "^0.1"
+rand = "^0.7.0"
