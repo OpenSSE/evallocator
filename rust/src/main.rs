@@ -34,8 +34,8 @@ fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> 
 
         let chosen_bucket = if count_b_1 > count_b_2 { b_2 } else { b_1 };
 
-        for j in (n_i * chosen_bucket)..(n_i * (chosen_bucket) + n_i) {
-            buckets[j] += 1;
+        for count in buckets.iter_mut().skip(n_i * chosen_bucket).take(n_i) {
+            *count += 1;
         }
 
         remaining_elements -= l;
@@ -48,7 +48,7 @@ fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> 
     if show_progress {
         pb.finish_with_message("Done!");
     }
-    return buckets;
+    buckets
 }
 
 fn main() {
