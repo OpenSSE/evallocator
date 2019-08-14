@@ -1,3 +1,13 @@
+pub fn msb(x: u64) -> u8 {
+    let bits = 64u8;
+    if x != 0 {
+        (bits -1 - (x.leading_zeros() as u8))
+    } else {
+        0u8
+    }
+}
+
+
 #[derive(Debug, Clone, Copy)]
 pub struct Stats {
     pub count: usize,
