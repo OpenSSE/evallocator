@@ -116,6 +116,7 @@ fn iterated_experiment(
         elements_pb.set_style(ProgressStyle::default_bar()
         .template("[{elapsed_precise}] {msg} [{bar:40.cyan/blue}] ({pos}/{len} elts - {percent}%) | ETA: {eta_precise}")
         .progress_chars("##-"));
+        elements_pb.set_draw_delta(100_000);
     }
 
     let progress_callback = |_, l: usize| {
@@ -173,9 +174,9 @@ fn iterated_experiment(
 // }
 
 fn main() {
-    let n = 1 << 20;
-    let m = 1 << 10;
-    let max_len = 1 << 7;
+    let n = 1 << 30;
+    let m = 1 << 20;
+    let max_len = 1 << 17;
     let iterations = 200;
 
     let results = iterated_experiment(iterations, n, m, max_len, true);
