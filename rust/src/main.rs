@@ -5,10 +5,12 @@ extern crate rayon;
 
 use rand::prelude::*;
 use rayon::prelude::*;
-use std::sync::atomic::{AtomicUsize,Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
+mod utils;
+pub use crate::utils::*;
 
 fn alloc_progress<F>(n: usize, m: usize, max_len: usize, mut progress_callback: F) -> Vec<usize>
 where
@@ -110,7 +112,6 @@ fn iterated_experiment(
     max_len: usize,
     show_progress: bool,
 ) -> Vec<ExperimentResult> {
-
     let elements_pb = ProgressBar::new((iterations * n) as u64);
     if show_progress {
         elements_pb.set_style(ProgressStyle::default_bar()
@@ -129,7 +130,11 @@ fn iterated_experiment(
 
     if show_progress {
         elements_pb.set_position(0);
-        elements_pb.set_message(&format!("{}/{} iterations",*iter_completed.get_mut(),iterations));
+        elements_pb.set_message(&format!(
+            "{}/{} iterations",
+            *iter_completed.get_mut(),
+            iterations
+        ));
     }
 
     let results: Vec<ExperimentResult> = (0..iterations)
@@ -139,7 +144,11 @@ fn iterated_experiment(
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {
-                elements_pb.set_message(&format!("{}/{} iterations",previous_count+1,iterations));
+                elements_pb.set_message(&format!(
+                    "{}/{} iterations",
+                    previous_count + 1,
+                    iterations
+                ));
             }
             r
         })
@@ -179,9 +188,16 @@ fn main() {
     let max_len = 1 << 17;
     let iterations = 200;
 
+    println!(
+        "{} allocation iteration with N={}, m={}, max_len={}",
+        iterations, n, m, max_len
+    );
+
     let results = iterated_experiment(iterations, n, m, max_len, true);
 
-    let max_max_load: usize = results.iter().fold(0, |m, x| m.max(x.max_load));
+    let load_stats = compute_stats(results.iter().map(|x| x.max_load));
+    let overhead_stats = compute_stats(results.iter().map(|x| x.size));
 
-    println!("Maximum load {}", max_max_load);
+    println!("Load {:?}", load_stats);
+    println!("Size {:?}", overhead_stats);
 }
