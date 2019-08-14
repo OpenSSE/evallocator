@@ -1,10 +1,10 @@
 #[derive(Debug, Clone, Copy)]
 pub struct Stats {
-    count: usize,
-    max: usize,
-    min: usize,
-    mean: f64,
-    variance: f64,
+    pub count: usize,
+    pub max: usize,
+    pub min: usize,
+    pub mean: f64,
+    pub variance: f64,
 }
 
 pub fn compute_stats<I>(iter: I) -> Stats

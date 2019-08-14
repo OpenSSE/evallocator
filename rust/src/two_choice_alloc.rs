@@ -147,7 +147,7 @@ pub fn iterated_experiment(
         elements_pb.set_style(ProgressStyle::default_bar()
         .template("[{elapsed_precise}] {msg} [{bar:40.cyan/blue}] ({pos}/{len} elts - {percent}%) | ETA: {eta_precise}")
         .progress_chars("##-"));
-        elements_pb.set_draw_delta(100_000);
+        elements_pb.set_draw_delta(1_000_000);
     }
 
     let progress_callback = |_, l: usize| {
