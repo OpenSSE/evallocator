@@ -12,7 +12,13 @@ use indicatif::{ProgressBar, ProgressStyle};
 mod utils;
 pub use crate::utils::*;
 
-fn alloc_progress<F>(n: usize, m: usize, max_len: usize, mut progress_callback: F) -> Vec<usize>
+fn alloc_progress<F>(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    pad_pow_2: bool,
+    mut progress_callback: F,
+) -> Vec<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -39,7 +45,12 @@ where
 
         let chosen_bucket = if count_b_1 > count_b_2 { b_2 } else { b_1 };
 
-        for count in buckets.iter_mut().skip(n_i * chosen_bucket).take(n_i) {
+        let inserted_elts = if pad_pow_2 { n_i } else { l };
+        for count in buckets
+            .iter_mut()
+            .skip(n_i * chosen_bucket)
+            .take(inserted_elts)
+        {
             *count += 1;
         }
 
@@ -50,7 +61,7 @@ where
     buckets
 }
 
-fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> {
+fn alloc(n: usize, m: usize, max_len: usize, pad_pow_2: bool, show_progress: bool) -> Vec<usize> {
     let pb = ProgressBar::new(n as u64);
     if show_progress {
         pb.set_style(ProgressStyle::default_bar()
@@ -64,7 +75,7 @@ fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> 
         }
     };
 
-    let buckets = alloc_progress(n, m, max_len, progress_callback);
+    let buckets = alloc_progress(n, m, max_len, pad_pow_2, progress_callback);
 
     if show_progress {
         pb.finish_with_message("Done!");
@@ -83,12 +94,13 @@ fn experiment_progress<F>(
     n: usize,
     m: usize,
     max_len: usize,
+    pad_pow_2: bool,
     progress_callback: F,
 ) -> ExperimentResult
 where
     F: FnMut(usize, usize),
 {
-    let rand_alloc = alloc_progress(n, m, max_len, progress_callback);
+    let rand_alloc = alloc_progress(n, m, max_len, pad_pow_2, progress_callback);
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
@@ -96,8 +108,14 @@ where
     }
 }
 
-fn experiment(n: usize, m: usize, max_len: usize, show_progress: bool) -> ExperimentResult {
-    let rand_alloc = alloc(n, m, max_len, show_progress);
+fn experiment(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    pad_pow_2: bool,
+    show_progress: bool,
+) -> ExperimentResult {
+    let rand_alloc = alloc(n, m, max_len, pad_pow_2, show_progress);
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
@@ -110,6 +128,7 @@ fn iterated_experiment(
     n: usize,
     m: usize,
     max_len: usize,
+    pad_pow_2: bool,
     show_progress: bool,
 ) -> Vec<ExperimentResult> {
     let elements_pb = ProgressBar::new((iterations * n) as u64);
@@ -140,7 +159,7 @@ fn iterated_experiment(
     let results: Vec<ExperimentResult> = (0..iterations)
         .into_par_iter()
         .map(|_| {
-            let r = experiment_progress(n, m, max_len, progress_callback);
+            let r = experiment_progress(n, m, max_len, pad_pow_2, progress_callback);
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {
@@ -193,7 +212,7 @@ fn main() {
         iterations, n, m, max_len
     );
 
-    let results = iterated_experiment(iterations, n, m, max_len, true);
+    let results = iterated_experiment(iterations, n, m, max_len, true, true);
 
     let load_stats = compute_stats(results.iter().map(|x| x.max_load));
     let overhead_stats = compute_stats(results.iter().map(|x| x.size));
