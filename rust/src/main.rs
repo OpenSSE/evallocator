@@ -60,12 +60,20 @@ struct AllocParams {
     pub m: usize,
     pub max_len: usize,
     pub pad_power_2: bool,
+    pub iterations: usize,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+struct AllocStats {
+    pub parameters: AllocParams,
+    pub size: utils::Stats,
+    pub load: utils::Stats,
 }
 
 fn main() {
     // let m = 1 << 10;
     // let max_len = 1 << 7;
-    let iterations = 20;
+    let iterations = 100;
 
     // let n_list: Vec<usize> = vec![
     //     1 << 21,
@@ -98,7 +106,7 @@ fn main() {
     //     })
     //     .collect();
 
-    let inputs: Vec<AllocParams> = (24..35)
+    let inputs: Vec<AllocParams> = (12..15)
         .map(|i| {
             let n = 1 << i;
             let m = (((n as f64) / (f64::from(i))).ceil() as usize).next_power_of_two();
@@ -109,18 +117,19 @@ fn main() {
                 // max_len: 1 << 17,
                 max_len: 1 << (i / 4),
                 pad_power_2: true,
+                iterations,
             }
         })
         .collect();
 
-    let load_stats: Vec<(AllocParams, Stats)> = inputs
+    let stats: Vec<AllocStats> = inputs
         .into_par_iter()
         .map(|p| {
             (
                 p,
                 // two_choice_alloc::iterated_experiment(
                 one_choice_alloc::iterated_experiment(
-                    iterations,
+                    p.iterations,
                     p.n,
                     p.m,
                     p.max_len,
@@ -129,17 +138,21 @@ fn main() {
                 ),
             )
         })
-        .map(|(p, results)| (p, compute_stats(results.iter().map(|x| x.max_load))))
+        .map(|(p, results)| AllocStats {
+            parameters: p,
+            size: compute_stats(results.iter().map(|x| x.size)),
+            load: compute_stats(results.iter().map(|x| x.max_load)),
+        })
         .collect();
 
-    let x: Vec<usize> = load_stats.iter().map(|(p, _)| p.n).collect();
-    let y: Vec<f64> = load_stats.iter().map(|(_, stat)| stat.mean).collect();
-    let err: Vec<f64> = load_stats.iter().map(|(_, stat)| stat.variance).collect();
-    let min_loads: Vec<usize> = load_stats.iter().map(|(_, stat)| stat.min).collect();
-    let max_loads: Vec<usize> = load_stats.iter().map(|(_, stat)| stat.max).collect();
-    let expected_max_load: Vec<f64> = load_stats
+    let x: Vec<usize> = stats.iter().map(|s| s.parameters.n).collect();
+    let y: Vec<f64> = stats.iter().map(|s| s.load.mean).collect();
+    let err: Vec<f64> = stats.iter().map(|s| s.load.variance).collect();
+    let min_loads: Vec<usize> = stats.iter().map(|s| s.load.min).collect();
+    let max_loads: Vec<usize> = stats.iter().map(|s| s.load.max).collect();
+    let expected_max_load: Vec<f64> = stats
         .iter()
-        .map(|(p, _)| 4.0 * (p.n as f64) / (p.m as f64))
+        .map(|s| 4.0 * (s.parameters.n as f64) / (s.parameters.m as f64))
         .collect();
 
     // println!("{:?}",x);
@@ -200,17 +213,32 @@ fn main() {
         );
     fg.show();
 
-    let f_csv = File::create("foo.csv").unwrap();
-    let writer = BufWriter::new(f_csv);
+    {
+        let f_load_csv = File::create("experiment.load.csv").unwrap();
+        let writer = BufWriter::new(f_load_csv);
 
-    let mut wtr = csv::Writer::from_writer(writer);
-    load_stats.iter().for_each(|x| wtr.serialize(x).unwrap());
+        let mut wtr = csv::Writer::from_writer(writer);
+        stats
+            .iter()
+            .for_each(|x| wtr.serialize((x.parameters, x.load)).unwrap());
 
-    wtr.flush().unwrap();
+        wtr.flush().unwrap();
+    }
 
-    let f_json = File::create("foo.json").unwrap();
-    serde_json::to_writer_pretty(&f_json, &load_stats).unwrap();
+    {
+        let f_size_csv = File::create("experiment.size.csv").unwrap();
+        let writer = BufWriter::new(f_size_csv);
 
-    // let serialized = serde_json::to_string(&point).unwrap();
-    // println!(serialized);
+        let mut wtr = csv::Writer::from_writer(writer);
+        stats
+            .iter()
+            .for_each(|x| wtr.serialize((x.parameters, x.size)).unwrap());
+
+        wtr.flush().unwrap();
+    }
+
+    {
+        let f_json = File::create("experiment.json").unwrap();
+        serde_json::to_writer_pretty(&f_json, &stats).unwrap();
+    }
 }
