@@ -4,6 +4,7 @@ pub use crate::utils::*;
 extern crate rayon;
 use rayon::prelude::*;
 
+mod one_choice_alloc;
 mod two_choice_alloc;
 
 extern crate gnuplot;
@@ -89,7 +90,7 @@ fn main() {
     ];
     // let m = 1 << 10;
     // let max_len = 1 << 7;
-    let iterations = 1;
+    let iterations = 100;
 
     // let inputs: Vec<AllocParams> = n_list
     //     .into_iter()
@@ -121,7 +122,8 @@ fn main() {
         .map(|p| {
             (
                 p,
-                two_choice_alloc::iterated_experiment(
+                // two_choice_alloc::iterated_experiment(
+                one_choice_alloc::iterated_experiment(
                     iterations,
                     p.n,
                     p.m,

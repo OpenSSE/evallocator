@@ -12,36 +12,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 // mod utils;
 pub use crate::utils::*;
 
-pub fn gen_distrib(n: usize, max_len: usize, rng: &mut ThreadRng) -> Vec<usize> {
-    let mut distribution = Vec::new();
-    let mut remaining = n;
-
-    while remaining != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining)) + 1;
-        distribution.push(l);
-        remaining -= l;
-    }
-
-    distribution
-}
-
-pub fn gen_distrib_pow_2(n: usize, max_bits: u8, rng: &mut ThreadRng) -> Vec<usize> {
-    let mut distribution = Vec::new();
-    let mut remaining = n;
-
-    while remaining != 0 {
-        let b: u8 = rng.gen_range(0, max_bits) + 1;
-        let l = 1usize << b;
-        if l > remaining {
-            continue;
-        }
-        distribution.push(l);
-        remaining -= l;
-    }
-
-    distribution
-}
-
 pub fn alloc_progress<F>(
     n: usize,
     m: usize,
@@ -57,83 +27,16 @@ where
     let mut remaining_elements = n;
 
     let mut rng = thread_rng();
-
-    // let mut distribution = gen_distrib(n, max_len, &mut rng);
-    let mut distribution = gen_distrib_pow_2(n, msb(max_len as u64) as u8, &mut rng);
-    distribution.sort();
-
-    for l in distribution {
-        let n_i = l.next_power_of_two();
-        let meta_buckets_counts = m / n_i;
-
-        let b_1: usize = rng.gen_range(0, meta_buckets_counts);
-        let b_2: usize = rng.gen_range(0, meta_buckets_counts);
-
-        let slice_1: &[usize] = &buckets[(n_i * b_1)..(n_i * (b_1 + 1))];
-        let count_b_1: usize = slice_1.iter().sum();
-
-        let slice_2: &[usize] = &buckets[(n_i * b_2)..(n_i * (b_2 + 1))];
-        let count_b_2: usize = slice_2.iter().sum();
-
-        let chosen_bucket = if count_b_1 > count_b_2 { b_2 } else { b_1 };
-
-        let inserted_elts = if pad_pow_2 { n_i } else { l };
-        for count in buckets
-            .iter_mut()
-            .skip(n_i * chosen_bucket)
-            .take(inserted_elts)
-        {
-            *count += 1;
-        }
-
-        remaining_elements -= l;
-        progress_callback(n - remaining_elements, l);
-    }
-
-    buckets
-}
-
-pub fn alloc_progress_crado<F>(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    pad_pow_2: bool,
-    mut progress_callback: F,
-) -> Vec<usize>
-where
-    F: FnMut(usize, usize),
-{
-    assert!(m > max_len);
-    let mut buckets = vec![0; m];
-    let mut remaining_elements = n;
-
-    let mut rng = thread_rng();
+    
 
     while remaining_elements != 0 {
         let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
+        let b: usize = rng.gen_range(0, m);
 
-        let n_i = l.next_power_of_two();
-        let meta_buckets_counts = m / n_i;
-
-        let b_1: usize = rng.gen_range(0, meta_buckets_counts);
-        let b_2: usize = rng.gen_range(0, meta_buckets_counts);
-
-        let slice_1: &[usize] = &buckets[(n_i * b_1)..(n_i * (b_1 + 1))];
-        let count_b_1: usize = slice_1.iter().sum();
-
-        let slice_2: &[usize] = &buckets[(n_i * b_2)..(n_i * (b_2 + 1))];
-        let count_b_2: usize = slice_2.iter().sum();
-
-        let chosen_bucket = if count_b_1 > count_b_2 { b_2 } else { b_1 };
-
-        let inserted_elts = if pad_pow_2 { n_i } else { l };
-        for count in buckets
-            .iter_mut()
-            .skip(n_i * chosen_bucket)
-            .take(inserted_elts)
-        {
-            *count += 1;
+        for i in 0..l {
+            buckets[(i+b) % m] += 1;
         }
+
 
         remaining_elements -= l;
         progress_callback(n - remaining_elements, l);
