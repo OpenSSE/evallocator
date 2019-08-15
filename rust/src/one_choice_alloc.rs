@@ -16,7 +16,7 @@ pub fn alloc_progress<F>(
     n: usize,
     m: usize,
     max_len: usize,
-    pad_pow_2: bool,
+    _pad_pow_2: bool, // use the same signature as the two choice alloc algorithm
     mut progress_callback: F,
 ) -> Vec<usize>
 where
@@ -27,16 +27,14 @@ where
     let mut remaining_elements = n;
 
     let mut rng = thread_rng();
-    
 
     while remaining_elements != 0 {
         let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
         let b: usize = rng.gen_range(0, m);
 
         for i in 0..l {
-            buckets[(i+b) % m] += 1;
+            buckets[(i + b) % m] += 1;
         }
-
 
         remaining_elements -= l;
         progress_callback(n - remaining_elements, l);
