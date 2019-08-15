@@ -1,6 +1,6 @@
-import numpy
 import random
-import time
+import numpy
+
 from progressbar import ProgressBar, Counter, Timer, Bar, Percentage, AdaptiveETA
 
 
