@@ -1,3 +1,6 @@
+#[macro_use]
+use serde::Serialize;
+
 pub fn msb(x: u64) -> u8 {
     let bits = 64u8;
     if x != 0 {
@@ -8,7 +11,7 @@ pub fn msb(x: u64) -> u8 {
 }
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct Stats {
     pub count: usize,
     pub max: usize,

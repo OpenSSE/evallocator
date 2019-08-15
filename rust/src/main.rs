@@ -1,11 +1,26 @@
 mod utils;
 pub use crate::utils::*;
 
+extern crate rayon;
+use rayon::prelude::*;
+
 mod two_choice_alloc;
 
 extern crate gnuplot;
 // use gnuplot::{Figure, Caption, Color, LineWidth};
 use gnuplot::*;
+
+
+#[macro_use]
+use serde::{Serialize, Deserialize};
+extern crate serde_json;
+extern crate csv;
+use std::io;
+
+use std::io::prelude::*;
+use std::io::BufWriter;
+use std::fs::File;
+
 
 // fn main() {
 //     let n = 1 << 30;
@@ -43,7 +58,7 @@ use gnuplot::*;
 //     println!("Size {:?}", overhead_stats);
 // }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy,Serialize, Deserialize)]
 struct AllocParams {
     pub n: usize,
     pub m: usize,
@@ -74,7 +89,7 @@ fn main() {
     ];
     // let m = 1 << 10;
     // let max_len = 1 << 7;
-    let iterations = 20;
+    let iterations = 1;
 
     // let inputs: Vec<AllocParams> = n_list
     //     .into_iter()
@@ -94,14 +109,15 @@ fn main() {
             AllocParams {
                 n: n,
                 m: m,
-                max_len: 1 << 17,
+                // max_len: 1 << 17,
+                max_len: 1 << (i/4),
                 pad_power_2: true,
             }
         })
         .collect();
 
     let load_stats: Vec<(AllocParams, Stats)> = inputs
-        .into_iter()
+        .into_par_iter()
         .map(|p| {
             (
                 p,
@@ -111,7 +127,7 @@ fn main() {
                     p.m,
                     p.max_len,
                     p.pad_power_2,
-                    true,
+                    false,
                 ),
             )
         })
@@ -123,11 +139,13 @@ fn main() {
     let err: Vec<f64> = load_stats.iter().map(|(_, stat)| stat.variance).collect();
     let min_loads: Vec<usize> = load_stats.iter().map(|(_, stat)| stat.min).collect();
     let max_loads: Vec<usize> = load_stats.iter().map(|(_, stat)| stat.max).collect();
-    let n_m_ratio: Vec<f64> = load_stats.iter().map(|(p, _)| (p.n as f64)/(p.m as f64)).collect();
+    let expected_max_load: Vec<f64> = load_stats.iter().map(|(p, _)| 4.0*(p.n as f64)/(p.m as f64)).collect();
 
 
     // println!("{:?}",x);
-    println!("{:?}",n_m_ratio);
+    // println!("{:?}",n_m_ratio);
+
+
     let mut fg = Figure::new();
     fg.axes2d()
         .set_x_log(Some(2.0))
@@ -171,9 +189,9 @@ fn main() {
             ],
         ).lines_points(
             &x,
-            &n_m_ratio,
+            &expected_max_load,
             &[
-                Caption("4n/m"),
+                Caption("Expected max load: 4n/m"),
                 // PointSymbol('+'),
                 LineWidth(1.0),
                 // LineStyle(Dash),
@@ -181,4 +199,20 @@ fn main() {
             ],
         );
     fg.show();
+
+    let f_csv = File::create("foo.csv").unwrap();
+    let mut writer = BufWriter::new(f_csv);
+
+    let mut wtr = csv::Writer::from_writer(writer);
+    load_stats.iter().for_each(|x| wtr.serialize(x).unwrap());
+
+    wtr.flush();
+
+
+    let f_json = File::create("foo.json").unwrap();
+    serde_json::to_writer_pretty(&f_json, &load_stats).unwrap();
+
+
+    // let serialized = serde_json::to_string(&point).unwrap();
+    // println!(serialized);
 }
