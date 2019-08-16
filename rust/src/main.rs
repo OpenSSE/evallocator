@@ -16,7 +16,13 @@ extern crate csv;
 extern crate serde_json;
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io;
+use std::io::{BufReader, BufWriter};
+use std::path::Path;
+
+extern crate structopt;
+
+use structopt::StructOpt;
 
 // fn main() {
 //     let n = 1 << 30;
@@ -70,59 +76,19 @@ struct AllocStats {
     pub load: utils::Stats,
 }
 
-fn main() {
-    // let m = 1 << 10;
-    // let max_len = 1 << 7;
-    let iterations = 100;
+#[derive(Debug, StructOpt)]
+#[structopt(name = "example", about = "An example of StructOpt usage.")]
+struct CliArgs {
+    #[structopt(parse(from_os_str), short = "c", long = "config")]
+    config_path: std::path::PathBuf,
+    #[structopt(parse(from_os_str), short = "o", long = "output")]
+    output_path: std::path::PathBuf,
+    #[structopt(short = "g", long = "gnuplot")]
+    gnuplot: bool,
+}
 
-    // let n_list: Vec<usize> = vec![
-    //     1 << 21,
-    //     1 << 22,
-    //     1 << 23,
-    //     1 << 24,
-    //     1 << 25,
-    //     1 << 26,
-    //     1 << 27,
-    // ];
-    // let n_list: Vec<usize> = vec![
-    //     1 << 11,
-    //     1 << 12,
-    //     1 << 13,
-    //     1 << 14,
-    //     1 << 15,
-    //     1 << 16,
-    //     1 << 17,
-    //     1 << 18,
-    //     1 << 19,
-    // ];
-
-    // let inputs: Vec<AllocParams> = n_list
-    //     .into_iter()
-    //     .map(|n| AllocParams {
-    //         n: n,
-    //         m: 1 << 10,
-    //         max_len: 1 << 7,
-    //         pad_power_2: true,
-    //     })
-    //     .collect();
-
-    let inputs: Vec<AllocParams> = (12..15)
-        .map(|i| {
-            let n = 1 << i;
-            let m = (((n as f64) / (f64::from(i))).ceil() as usize).next_power_of_two();
-            // println!("{}",m);
-            AllocParams {
-                n,
-                m,
-                // max_len: 1 << 17,
-                max_len: 1 << (i / 4),
-                pad_power_2: true,
-                iterations,
-            }
-        })
-        .collect();
-
-    let stats: Vec<AllocStats> = inputs
+fn run_experiments_stats(inputs: &Vec<AllocParams>) -> Vec<AllocStats> {
+    inputs
         .into_par_iter()
         .map(|p| {
             (
@@ -139,12 +105,14 @@ fn main() {
             )
         })
         .map(|(p, results)| AllocStats {
-            parameters: p,
+            parameters: *p,
             size: compute_stats(results.iter().map(|x| x.size)),
             load: compute_stats(results.iter().map(|x| x.max_load)),
         })
-        .collect();
+        .collect()
+}
 
+fn plot_load_stats(stats: &Vec<AllocStats>) {
     let x: Vec<usize> = stats.iter().map(|s| s.parameters.n).collect();
     let y: Vec<f64> = stats.iter().map(|s| s.load.mean).collect();
     let err: Vec<f64> = stats.iter().map(|s| s.load.variance).collect();
@@ -212,33 +180,64 @@ fn main() {
             ],
         );
     fg.show();
+}
 
-    {
-        let f_load_csv = File::create("experiment.load.csv").unwrap();
-        let writer = BufWriter::new(f_load_csv);
+fn read_config_file<P: AsRef<Path>>(path: P) -> io::Result<Vec<AllocParams>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
 
-        let mut wtr = csv::Writer::from_writer(writer);
-        stats
-            .iter()
-            .for_each(|x| wtr.serialize((x.parameters, x.load)).unwrap());
+    // Read the JSON contents of the file as an instance of `User`.
+    let params = serde_json::from_reader(reader)?;
 
-        wtr.flush().unwrap();
-    }
+    Ok(params)
+}
 
-    {
-        let f_size_csv = File::create("experiment.size.csv").unwrap();
-        let writer = BufWriter::new(f_size_csv);
+fn write_load_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+    let f = File::create(path)?;
+    let writer = BufWriter::new(f);
 
-        let mut wtr = csv::Writer::from_writer(writer);
-        stats
-            .iter()
-            .for_each(|x| wtr.serialize((x.parameters, x.size)).unwrap());
+    let mut wtr = csv::Writer::from_writer(writer);
+    stats
+        .iter()
+        .for_each(|x| wtr.serialize((x.parameters, x.load)).unwrap());
 
-        wtr.flush().unwrap();
-    }
+    wtr.flush()?;
+    Ok(())
+}
 
-    {
-        let f_json = File::create("experiment.json").unwrap();
-        serde_json::to_writer_pretty(&f_json, &stats).unwrap();
+fn write_size_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+    let f = File::create(path)?;
+    let writer = BufWriter::new(f);
+
+    let mut wtr = csv::Writer::from_writer(writer);
+    stats
+        .iter()
+        .for_each(|x| wtr.serialize((x.parameters, x.size)).unwrap());
+
+    wtr.flush()?;
+    Ok(())
+}
+
+fn write_stats_json<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+    let f_json = File::create(path)?;
+    serde_json::to_writer_pretty(&f_json, &stats)?;
+    Ok(())
+}
+
+fn main() {
+    let args = CliArgs::from_args();
+
+    println!("{:?}", args);
+
+    let inputs = read_config_file(args.config_path).unwrap();
+
+    let stats = run_experiments_stats(&inputs);
+
+    write_load_stats_csv(&stats, args.output_path.with_extension("load.csv")).unwrap();
+    write_size_stats_csv(&stats, args.output_path.with_extension("size.csv")).unwrap();
+    write_stats_json(&stats, args.output_path.with_extension("json")).unwrap();
+
+    if args.gnuplot {
+        plot_load_stats(&stats);
     }
 }
