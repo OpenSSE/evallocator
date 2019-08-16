@@ -11,12 +11,12 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 // mod utils;
 pub use crate::utils::*;
+pub use crate::alloc_algorithm::*;
 
 pub fn alloc_progress<F>(
     n: usize,
     m: usize,
     max_len: usize,
-    _pad_pow_2: bool, // use the same signature as the two choice alloc algorithm
     mut progress_callback: F,
 ) -> Vec<usize>
 where
@@ -47,7 +47,6 @@ pub fn alloc(
     n: usize,
     m: usize,
     max_len: usize,
-    pad_pow_2: bool,
     show_progress: bool,
 ) -> Vec<usize> {
     let pb = ProgressBar::new(n as u64);
@@ -63,7 +62,7 @@ pub fn alloc(
         }
     };
 
-    let buckets = alloc_progress(n, m, max_len, pad_pow_2, progress_callback);
+    let buckets = alloc_progress(n, m, max_len, progress_callback);
 
     if show_progress {
         pb.finish_with_message("Done!");
@@ -72,23 +71,16 @@ pub fn alloc(
     buckets
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ExperimentResult {
-    pub size: usize,
-    pub max_load: usize,
-}
-
 pub fn experiment_progress<F>(
     n: usize,
     m: usize,
     max_len: usize,
-    pad_pow_2: bool,
     progress_callback: F,
 ) -> ExperimentResult
 where
     F: FnMut(usize, usize),
 {
-    let rand_alloc = alloc_progress(n, m, max_len, pad_pow_2, progress_callback);
+    let rand_alloc = alloc_progress(n, m, max_len, progress_callback);
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
@@ -100,10 +92,9 @@ pub fn experiment(
     n: usize,
     m: usize,
     max_len: usize,
-    pad_pow_2: bool,
     show_progress: bool,
 ) -> ExperimentResult {
-    let rand_alloc = alloc(n, m, max_len, pad_pow_2, show_progress);
+    let rand_alloc = alloc(n, m, max_len, show_progress);
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
@@ -116,12 +107,11 @@ pub fn iterated_experiment(
     n: usize,
     m: usize,
     max_len: usize,
-    pad_pow_2: bool,
     show_progress: bool,
 ) -> Vec<ExperimentResult> {
     println!(
-        "{} allocation iterations with N={}, m={}, max_len={}, pad_power_of_2={}",
-        iterations, n, m, max_len, pad_pow_2
+        "{} one choice allocation iterations with N={}, m={}, max_len={}",
+        iterations, n, m, max_len
     );
 
     let elements_pb = ProgressBar::new((iterations * n) as u64);
@@ -152,7 +142,7 @@ pub fn iterated_experiment(
     let results: Vec<ExperimentResult> = (0..iterations)
         .into_par_iter()
         .map(|_| {
-            let r = experiment_progress(n, m, max_len, pad_pow_2, progress_callback);
+            let r = experiment_progress(n, m, max_len, progress_callback);
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {

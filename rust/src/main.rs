@@ -4,6 +4,9 @@ pub use crate::utils::*;
 extern crate rayon;
 use rayon::prelude::*;
 
+mod alloc_algorithm;
+use alloc_algorithm::*;
+
 mod one_choice_alloc;
 mod two_choice_alloc;
 
@@ -11,7 +14,6 @@ extern crate gnuplot;
 // use gnuplot::{Figure, Caption, Color, LineWidth};
 use gnuplot::*;
 
-use serde::{Deserialize, Serialize};
 extern crate csv;
 extern crate serde_json;
 
@@ -60,21 +62,7 @@ use structopt::StructOpt;
 //     println!("Size {:?}", overhead_stats);
 // }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-struct AllocParams {
-    pub n: usize,
-    pub m: usize,
-    pub max_len: usize,
-    pub pad_power_2: bool,
-    pub iterations: usize,
-}
 
-#[derive(Debug, Clone, Copy, Serialize)]
-struct AllocStats {
-    pub parameters: AllocParams,
-    pub size: utils::Stats,
-    pub load: utils::Stats,
-}
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "example", about = "An example of StructOpt usage.")]
@@ -100,15 +88,24 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
         .map(|p| {
             (
                 p,
+                match p.algorithm {
+                    AllocAlgorithm::OneChoiceAllocation => one_choice_alloc::iterated_experiment(
+                        p.iterations,
+                        p.n,
+                        p.m,
+                        p.max_len,
+                        false,
+                    ),
+                    AllocAlgorithm::TwoChoiceAllocation => two_choice_alloc::iterated_experiment(
+                        p.iterations,
+                        p.n,
+                        p.m,
+                        p.max_len,
+                        p.pad_power_2,
+                        false,
+                    ),
+                },
                 // two_choice_alloc::iterated_experiment(
-                one_choice_alloc::iterated_experiment(
-                    p.iterations,
-                    p.n,
-                    p.m,
-                    p.max_len,
-                    p.pad_power_2,
-                    false,
-                ),
             )
         })
         .map(|(p, results)| AllocStats {
@@ -118,7 +115,6 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
         })
         .collect()
 }
-
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> io::Result<Vec<AllocParams>> {
     let file = File::open(path)?;

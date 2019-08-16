@@ -11,6 +11,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 // mod utils;
 pub use crate::utils::*;
+pub use crate::alloc_algorithm::*;
 
 pub fn gen_distrib(n: usize, max_len: usize, rng: &mut ThreadRng) -> Vec<usize> {
     let mut distribution = Vec::new();
@@ -169,12 +170,6 @@ pub fn alloc(
     }
 
     buckets
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ExperimentResult {
-    pub size: usize,
-    pub max_load: usize,
 }
 
 pub fn experiment_progress<F>(
