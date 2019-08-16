@@ -4,3 +4,6 @@
 
 /*.json
 /*.csv
+
+# Do not ignore the example configuration files
+!example_config.json
