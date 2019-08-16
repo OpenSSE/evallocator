@@ -80,14 +80,21 @@ struct AllocStats {
 #[structopt(name = "example", about = "An example of StructOpt usage.")]
 struct CliArgs {
     #[structopt(parse(from_os_str), short = "c", long = "config")]
+    /// Path to a JSON configuration file. See "example_config.json" for an example
     config_path: std::path::PathBuf,
-    #[structopt(parse(from_os_str), short = "o", long = "output")]
+    #[structopt(
+        parse(from_os_str),
+        short = "o",
+        long = "output",
+        default_value = "results"
+    )]
+    /// Path for the output statistics of the experiments. A JSON and two CSV files (one for the load, the other for the space) will be generated
     output_path: std::path::PathBuf,
     #[structopt(short = "g", long = "gnuplot")]
     gnuplot: bool,
 }
 
-fn run_experiments_stats(inputs: &Vec<AllocParams>) -> Vec<AllocStats> {
+fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
     inputs
         .into_par_iter()
         .map(|p| {
@@ -112,7 +119,18 @@ fn run_experiments_stats(inputs: &Vec<AllocParams>) -> Vec<AllocStats> {
         .collect()
 }
 
-fn plot_load_stats(stats: &Vec<AllocStats>) {
+
+fn read_config_file<P: AsRef<Path>>(path: P) -> io::Result<Vec<AllocParams>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    // Read the JSON contents of the file as an instance of `User`.
+    let params = serde_json::from_reader(reader)?;
+
+    Ok(params)
+}
+
+fn plot_load_stats(stats: &[AllocStats]) {
     let x: Vec<usize> = stats.iter().map(|s| s.parameters.n).collect();
     let y: Vec<f64> = stats.iter().map(|s| s.load.mean).collect();
     let err: Vec<f64> = stats.iter().map(|s| s.load.variance).collect();
@@ -122,9 +140,6 @@ fn plot_load_stats(stats: &Vec<AllocStats>) {
         .iter()
         .map(|s| 4.0 * (s.parameters.n as f64) / (s.parameters.m as f64))
         .collect();
-
-    // println!("{:?}",x);
-    // println!("{:?}",n_m_ratio);
 
     let mut fg = Figure::new();
     fg.axes2d()
@@ -182,17 +197,7 @@ fn plot_load_stats(stats: &Vec<AllocStats>) {
     fg.show();
 }
 
-fn read_config_file<P: AsRef<Path>>(path: P) -> io::Result<Vec<AllocParams>> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-
-    // Read the JSON contents of the file as an instance of `User`.
-    let params = serde_json::from_reader(reader)?;
-
-    Ok(params)
-}
-
-fn write_load_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+fn write_load_stats_csv<P: AsRef<Path>>(stats: &[AllocStats], path: P) -> io::Result<()> {
     let f = File::create(path)?;
     let writer = BufWriter::new(f);
 
@@ -205,7 +210,7 @@ fn write_load_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io:
     Ok(())
 }
 
-fn write_size_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+fn write_size_stats_csv<P: AsRef<Path>>(stats: &[AllocStats], path: P) -> io::Result<()> {
     let f = File::create(path)?;
     let writer = BufWriter::new(f);
 
@@ -218,26 +223,28 @@ fn write_size_stats_csv<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io:
     Ok(())
 }
 
-fn write_stats_json<P: AsRef<Path>>(stats: &Vec<AllocStats>, path: P) -> io::Result<()> {
+fn write_stats_json<P: AsRef<Path>>(stats: &[AllocStats], path: P) -> io::Result<()> {
     let f_json = File::create(path)?;
     serde_json::to_writer_pretty(&f_json, &stats)?;
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = CliArgs::from_args();
 
     println!("{:?}", args);
 
-    let inputs = read_config_file(args.config_path).unwrap();
+    let inputs = read_config_file(args.config_path)?;
 
     let stats = run_experiments_stats(&inputs);
 
-    write_load_stats_csv(&stats, args.output_path.with_extension("load.csv")).unwrap();
-    write_size_stats_csv(&stats, args.output_path.with_extension("size.csv")).unwrap();
-    write_stats_json(&stats, args.output_path.with_extension("json")).unwrap();
+    write_load_stats_csv(&stats, args.output_path.with_extension("load.csv"))?;
+    write_size_stats_csv(&stats, args.output_path.with_extension("size.csv"))?;
+    write_stats_json(&stats, args.output_path.with_extension("json"))?;
 
     if args.gnuplot {
         plot_load_stats(&stats);
     }
+
+    Ok(())
 }
