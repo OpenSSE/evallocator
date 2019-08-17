@@ -160,7 +160,7 @@ fn plot_load_stats(stats: &[AllocStats]) {
     let max_loads: Vec<usize> = stats.iter().map(|s| s.load.max).collect();
     let expected_max_load: Vec<f64> = stats
         .iter()
-        .map(|s| 4.0 * (s.parameters.n as f64) / (s.parameters.m as f64))
+        .map(|s| 3.0 * (s.parameters.n as f64) / (s.parameters.m as f64))
         .collect();
 
     let mut fg = Figure::new();
@@ -209,7 +209,7 @@ fn plot_load_stats(stats: &[AllocStats]) {
             &x,
             &expected_max_load,
             &[
-                Caption("Expected max load: 4n/m"),
+                Caption("Expected max load: 3n/m"),
                 // PointSymbol('+'),
                 LineWidth(1.0),
                 // LineStyle(Dash),
