@@ -62,8 +62,6 @@ use structopt::StructOpt;
 //     println!("Size {:?}", overhead_stats);
 // }
 
-
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "example", about = "An example of StructOpt usage.")]
 struct CliArgs {
@@ -83,7 +81,30 @@ struct CliArgs {
 }
 
 fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
-    inputs
+    let tot_iterations: usize = inputs.iter().map(|p| p.iterations).sum();
+    let tot_elements: usize = inputs.iter().map(|p| p.iterations * p.n).sum();
+
+    let iter_completed = std::sync::atomic::AtomicUsize::new(0);
+
+    let pb = indicatif::ProgressBar::new(tot_elements as u64);
+
+    pb.set_style(indicatif::ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] {msg} [{bar:40.cyan/blue}] ({pos}/{len} elts - {percent}%) | ETA: {eta_precise}")
+        .progress_chars("##-"));
+    pb.set_message(&format!("{}/{} iterations", 0, tot_iterations));
+    pb.enable_steady_tick(1000);
+    
+    let iteration_progress_callback = |n: usize| {
+        let previous_count = iter_completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        pb.set_message(&format!(
+            "{}/{} iterations",
+            previous_count + 1,
+            tot_iterations
+        ));
+        pb.inc(n as u64);
+    };
+
+    let results = inputs
         .into_par_iter()
         .map(|p| {
             (
@@ -95,6 +116,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.m,
                         p.max_len,
                         false,
+                        iteration_progress_callback,
                     ),
                     AllocAlgorithm::TwoChoiceAllocation => two_choice_alloc::iterated_experiment(
                         p.iterations,
@@ -103,6 +125,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.max_len,
                         p.pad_power_2,
                         false,
+                        iteration_progress_callback,
                     ),
                 },
                 // two_choice_alloc::iterated_experiment(
@@ -113,7 +136,10 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
             size: compute_stats(results.iter().map(|x| x.size)),
             load: compute_stats(results.iter().map(|x| x.max_load)),
         })
-        .collect()
+        .collect();
+
+    pb.finish();
+    results
 }
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> io::Result<Vec<AllocParams>> {

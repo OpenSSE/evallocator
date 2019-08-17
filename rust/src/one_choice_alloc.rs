@@ -10,15 +10,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use indicatif::{ProgressBar, ProgressStyle};
 
 // mod utils;
-pub use crate::utils::*;
 pub use crate::alloc_algorithm::*;
+pub use crate::utils::*;
 
-pub fn alloc_progress<F>(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    mut progress_callback: F,
-) -> Vec<usize>
+pub fn alloc_progress<F>(n: usize, m: usize, max_len: usize, mut progress_callback: F) -> Vec<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -43,12 +38,7 @@ where
     buckets
 }
 
-pub fn alloc(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    show_progress: bool,
-) -> Vec<usize> {
+pub fn alloc(n: usize, m: usize, max_len: usize, show_progress: bool) -> Vec<usize> {
     let pb = ProgressBar::new(n as u64);
     if show_progress {
         pb.set_style(ProgressStyle::default_bar()
@@ -88,12 +78,7 @@ where
     }
 }
 
-pub fn experiment(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    show_progress: bool,
-) -> ExperimentResult {
+pub fn experiment(n: usize, m: usize, max_len: usize, show_progress: bool) -> ExperimentResult {
     let rand_alloc = alloc(n, m, max_len, show_progress);
 
     ExperimentResult {
@@ -102,17 +87,21 @@ pub fn experiment(
     }
 }
 
-pub fn iterated_experiment(
+pub fn iterated_experiment<F>(
     iterations: usize,
     n: usize,
     m: usize,
     max_len: usize,
     show_progress: bool,
-) -> Vec<ExperimentResult> {
-    println!(
-        "{} one choice allocation iterations with N={}, m={}, max_len={}",
-        iterations, n, m, max_len
-    );
+    iteration_progress_callback: F,
+) -> Vec<ExperimentResult>
+where
+    F: Fn(usize) + Send + Sync,
+{
+    // println!(
+    // "{} one choice allocation iterations with N={}, m={}, max_len={}",
+    // iterations, n, m, max_len
+    // );
 
     let elements_pb = ProgressBar::new((iterations * n) as u64);
     if show_progress {
@@ -143,6 +132,7 @@ pub fn iterated_experiment(
         .into_par_iter()
         .map(|_| {
             let r = experiment_progress(n, m, max_len, progress_callback);
+            iteration_progress_callback(n);
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {

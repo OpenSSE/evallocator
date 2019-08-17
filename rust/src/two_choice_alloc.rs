@@ -10,8 +10,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use indicatif::{ProgressBar, ProgressStyle};
 
 // mod utils;
-pub use crate::utils::*;
 pub use crate::alloc_algorithm::*;
+pub use crate::utils::*;
 
 pub fn gen_distrib(n: usize, max_len: usize, rng: &mut ThreadRng) -> Vec<usize> {
     let mut distribution = Vec::new();
@@ -205,18 +205,22 @@ pub fn experiment(
     }
 }
 
-pub fn iterated_experiment(
+pub fn iterated_experiment<F>(
     iterations: usize,
     n: usize,
     m: usize,
     max_len: usize,
     pad_pow_2: bool,
     show_progress: bool,
-) -> Vec<ExperimentResult> {
-    println!(
-        "{} allocation iterations with N={}, m={}, max_len={}, pad_power_of_2={}",
-        iterations, n, m, max_len, pad_pow_2
-    );
+    iteration_progress_callback: F,
+) -> Vec<ExperimentResult>
+where
+    F: Fn(usize) + Send + Sync,
+{
+    // println!(
+    // "{} allocation iterations with N={}, m={}, max_len={}, pad_power_of_2={}",
+    // iterations, n, m, max_len, pad_pow_2
+    // );
 
     let elements_pb = ProgressBar::new((iterations * n) as u64);
     if show_progress {
@@ -247,7 +251,7 @@ pub fn iterated_experiment(
         .into_par_iter()
         .map(|_| {
             let r = experiment_progress(n, m, max_len, pad_pow_2, progress_callback);
-
+            iteration_progress_callback(n);
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {
                 elements_pb.set_message(&format!(
