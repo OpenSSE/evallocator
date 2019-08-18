@@ -39,3 +39,18 @@ The file [`example_config.json`](rust/example_config.json
 
 
 You can add the `-g` option to display the load results directly with gnuplot.
+
+## Gnuplot scripts
+
+In the `gnuplot` directory, you will find two scripts that will be useful to post-process the experimental results (in the form of CSV files):
+* `plot_load_n.gp`: plot the maximum load in function of the number of elements, as well as the expected maximum load from the papers. Plots are separated per algorithm;
+* `plot_load_max_len.gp`: plot the maxium load in function of the max list length.
+
+You can use the scripts by either using
+```
+./plot_load_n.gp path/to/input.csv
+```
+or
+```
+gnuplot --persist -c plot_load_n.gp path/to/input.csv
+```
