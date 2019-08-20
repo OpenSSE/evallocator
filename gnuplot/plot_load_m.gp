@@ -29,7 +29,6 @@ plot    "<(sed -e '/OneChoice/!d' ".filename.")" using 2:10 title "One choice me
         "<(sed -e '/OneChoice/!d' ".filename.")" using 2:8 title "One choice max maximum load" with linespoints,\
         "<(sed -e '/OneChoice/!d' ".filename.")" using 2:9 title "One choice min maximum load" with linespoints, \
         "<(sed -e '/OneChoice/!d' ".filename.")" using 2:(3*$1/$2) title "One choice expected max load 3n/m" with lines,\
-        "<(sed -e '/TwoChoice/!d' ".filename.")" using 2:(f($1/$2)) title "fit" with lines,\
         "<(sed -e '/TwoChoice/!d' ".filename.")" using 2:10 title "Two choice mean maximum load" with linespoints,\
         "<(sed -e '/TwoChoice/!d' ".filename.")" using 2:8 title "Two choice max maximum load" with linespoints,\
         "<(sed -e '/TwoChoice/!d' ".filename.")" using 2:9 title "Two choice min maximum load" with linespoints

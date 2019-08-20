@@ -17,7 +17,6 @@ pub fn alloc_progress<F>(n: usize, m: usize, max_len: usize, mut progress_callba
 where
     F: FnMut(usize, usize),
 {
-    assert!(m > max_len);
     let mut buckets = vec![0; m];
     let mut remaining_elements = n;
 
