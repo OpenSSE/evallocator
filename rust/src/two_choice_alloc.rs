@@ -183,10 +183,12 @@ where
     F: FnMut(usize, usize),
 {
     let rand_alloc = alloc_progress(n, m, max_len, pad_pow_2, progress_callback);
+    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
-        max_load: rand_alloc.iter().fold(0, |m, x| m.max(*x)),
+        max_load,
+        load_modes: compute_modes(rand_alloc.into_iter(),max_load),
     }
 }
 
@@ -198,10 +200,12 @@ pub fn experiment(
     show_progress: bool,
 ) -> ExperimentResult {
     let rand_alloc = alloc(n, m, max_len, pad_pow_2, show_progress);
+    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
 
     ExperimentResult {
         size: rand_alloc.iter().sum(),
         max_load: rand_alloc.iter().fold(0, |m, x| m.max(*x)),
+        load_modes: compute_modes(rand_alloc.into_iter(),max_load),
     }
 }
 

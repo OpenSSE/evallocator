@@ -16,15 +16,17 @@ pub struct AllocParams {
     pub iterations: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExperimentResult {
     pub size: usize,
     pub max_load: usize,
+    pub load_modes: Vec<usize>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AllocStats {
     pub parameters: AllocParams,
     pub size: crate::utils::Stats,
     pub load: crate::utils::Stats,
+    pub load_modes: Vec<f64>,
 }

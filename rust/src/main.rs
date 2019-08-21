@@ -131,10 +131,14 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                 // two_choice_alloc::iterated_experiment(
             )
         })
-        .map(|(p, results)| AllocStats {
+        .map(|(p, results)| {
+            let load_stat = compute_stats(results.iter().map(|x| x.max_load));
+            AllocStats {
             parameters: *p,
             size: compute_stats(results.iter().map(|x| x.size)),
-            load: compute_stats(results.iter().map(|x| x.max_load)),
+            load: load_stat,
+            load_modes: compute_modes_stat(results.iter().map(|x| &x.load_modes), load_stat.max),
+        }
         })
         .collect();
 
