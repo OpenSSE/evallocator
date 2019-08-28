@@ -57,39 +57,63 @@ where
     }
 }
 
-pub fn compute_modes<I>(iter:I, max:usize) -> Vec<usize>
+pub fn compute_modes<I>(iter: I, max: usize) -> Vec<usize>
 where
-    I: Iterator<Item = usize>
+    I: Iterator<Item = usize>,
 {
-    let mut modes =  vec![0usize;max+1];
+    let mut modes = vec![0usize; max + 1];
     for v in iter {
         modes[v] += 1;
     }
-    
+
     modes
 }
 
-pub fn compute_modes_stat<'a,I>(iter: I, max:usize) -> Vec<f64>
+pub fn compute_modes_stat<'a, I>(iter: I, max: usize) -> Vec<f64>
 where
     I: Iterator<Item = &'a Vec<usize>>,
 {
-    let mut modes =  vec![0.0;max+1];
+    let mut modes = vec![0; max + 1];
     let mut count = 0;
 
     for m in iter {
-        for i in  0..m.len() {
-            modes[i] += m[i] as f64;
+        for i in 0..m.len() {
+            modes[i] += m[i];
         }
         count += 1;
     }
 
-    for i in  0..modes.len() {
-        modes[i] /= count as f64;
-    }
-
     modes
+        .into_iter()
+        .map(|m| {
+            if m == 0 {
+                0.0
+            } else {
+                (m as f64) / (count as f64)
+            }
+        })
+        .collect()
+    // for i in 0..modes.len() {
+    //     modes[i] /= count as f64;
+    // }
+
+    // modes
 }
 
+pub fn compute_overflow_stat<'a, I>(iter: I, overflow_limit: usize) -> usize
+where
+    I: Iterator<Item = &'a usize>,
+{
+    (0..).zip(iter)
+        .map(|(i, x)| {
+            if i > overflow_limit {
+                (i-overflow_limit) * x
+            } else {
+                0
+            }
+        })
+        .sum()
+}
 
 pub trait Mean<A = Self>: Sized {
     fn mean<I: Iterator<Item = A>>(iter: I) -> f64;

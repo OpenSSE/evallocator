@@ -27,23 +27,23 @@ extern crate structopt;
 use structopt::StructOpt;
 
 // fn main() {
-//     let n = 1 << 30;
-//     let m = 1 << 20;
-//     let max_len = 1 << 17;
+//     let n = 134217728;
+//     let m = 134217728;
+//     let max_len = 10000;
 
-//     let allocation = alloc(n, m, max_len, true);
+//     let allocation = one_choice_alloc::experiment(n, m, max_len, 9, true);
 
-//     let total: usize = allocation.iter().sum();
-//     let max_load: usize = allocation.iter().fold(0, |m, x| m.max(*x));
-
-//     println!("Maximum load {}", max_load);
-//     println!("Total (with insertion padding) {}", total);
-//     println!("Padding overhead {}", (total as f64) / (n as f64) - 1.);
-//     println!("Total (with bucket padding) {}", max_load * m);
+//     println!("Maximum load {}", allocation.max_load);
+//     println!("Total (with insertion padding) {}", allocation.size);
+//     println!("Padding overhead {}", (allocation.size as f64) / (n as f64) - 1.);
+//     println!("Total (with bucket padding) {}", allocation.max_load * m);
 //     println!(
 //         "Complete overhead {}",
-//         ((max_load * m) as f64) / (n as f64) - 1.
+//         ((allocation.max_load * m) as f64) / (n as f64) - 1.
 //     );
+
+//     println!("{:?}", allocation.load_modes);
+//     println!("{:?}", allocation.overflows);
 //     // println!("{:?}", allocation);
 // }
 
@@ -93,7 +93,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
         .progress_chars("##-"));
     pb.set_message(&format!("{}/{} iterations", 0, tot_iterations));
     pb.enable_steady_tick(1000);
-    
+
     let iteration_progress_callback = |n: usize| {
         let previous_count = iter_completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         pb.set_message(&format!(
@@ -115,6 +115,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.n,
                         p.m,
                         p.max_len,
+                        p.overflow_max,
                         false,
                         iteration_progress_callback,
                     ),
@@ -123,6 +124,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.n,
                         p.m,
                         p.max_len,
+                        p.overflow_max,
                         p.pad_power_2,
                         false,
                         iteration_progress_callback,
@@ -134,11 +136,15 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
         .map(|(p, results)| {
             let load_stat = compute_stats(results.iter().map(|x| x.max_load));
             AllocStats {
-            parameters: *p,
-            size: compute_stats(results.iter().map(|x| x.size)),
-            load: load_stat,
-            load_modes: compute_modes_stat(results.iter().map(|x| &x.load_modes), load_stat.max),
-        }
+                parameters: *p,
+                size: compute_stats(results.iter().map(|x| x.size)),
+                load: load_stat,
+                load_modes: compute_modes_stat(
+                    results.iter().map(|x| &x.load_modes),
+                    load_stat.max,
+                ),
+                overflows: compute_modes_stat(results.iter().map(|x| &x.overflows), p.overflow_max),
+            }
         })
         .collect();
 

@@ -3,6 +3,8 @@
     "n": 4096,
     "m": 512,
     "max_len": 8,
+    "overflow_max": 5,
+    "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
     "pad_power_2": true,
     "iterations": 100
@@ -11,6 +13,8 @@
     "n": 8192,
     "m": 1024,
     "max_len": 8,
+    "overflow_max": 5,
+    "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
     "pad_power_2": true,
     "iterations": 100
@@ -19,6 +23,8 @@
     "n": 16384,
     "m": 2048,
     "max_len": 8,
+    "overflow_max": 5,
+    "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
     "pad_power_2": true,
     "iterations": 100
@@ -27,6 +33,8 @@
     "n": 16384,
     "m": 2048,
     "max_len": 8,
+    "overflow_max": 5,
+    "overflow_max": 5,
     "algorithm": "TwoChoiceAllocation",
     "pad_power_2": true,
     "iterations": 100

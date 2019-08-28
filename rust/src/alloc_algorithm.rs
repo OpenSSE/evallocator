@@ -11,6 +11,7 @@ pub struct AllocParams {
     pub n: usize,
     pub m: usize,
     pub max_len: usize,
+    pub overflow_max: usize,
     pub algorithm: AllocAlgorithm,
     pub pad_power_2: bool,
     pub iterations: usize,
@@ -21,6 +22,7 @@ pub struct ExperimentResult {
     pub size: usize,
     pub max_load: usize,
     pub load_modes: Vec<usize>,
+    pub overflows: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -29,4 +31,5 @@ pub struct AllocStats {
     pub size: crate::utils::Stats,
     pub load: crate::utils::Stats,
     pub load_modes: Vec<f64>,
+    pub overflows: Vec<f64>,
 }

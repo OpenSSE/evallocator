@@ -64,29 +64,48 @@ pub fn experiment_progress<F>(
     n: usize,
     m: usize,
     max_len: usize,
+    overflow_max: usize,
     progress_callback: F,
 ) -> ExperimentResult
 where
     F: FnMut(usize, usize),
 {
     let rand_alloc = alloc_progress(n, m, max_len, progress_callback);
+    let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
+    let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
+    let overflows = (0..overflow_max)
+        .map(|of| compute_overflow_stat(load_modes.iter(), of))
+        .collect();
 
     ExperimentResult {
-        size: rand_alloc.iter().sum(),
+        size,
         max_load,
-        load_modes: compute_modes(rand_alloc.into_iter(),max_load),
+        load_modes,
+        overflows,
     }
 }
 
-pub fn experiment(n: usize, m: usize, max_len: usize, show_progress: bool) -> ExperimentResult {
+pub fn experiment(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    overflow_max: usize,
+    show_progress: bool,
+) -> ExperimentResult {
     let rand_alloc = alloc(n, m, max_len, show_progress);
+    let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
+    let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
+    let overflows = (0..overflow_max)
+        .map(|of| compute_overflow_stat(load_modes.iter(), of))
+        .collect();
 
     ExperimentResult {
-        size: rand_alloc.iter().sum(),
-        max_load: rand_alloc.iter().fold(0, |m, x| m.max(*x)),
-        load_modes: compute_modes(rand_alloc.into_iter(),max_load),
+        size,
+        max_load,
+        load_modes,
+        overflows,
     }
 }
 
@@ -95,6 +114,7 @@ pub fn iterated_experiment<F>(
     n: usize,
     m: usize,
     max_len: usize,
+    overflow_max: usize,
     show_progress: bool,
     iteration_progress_callback: F,
 ) -> Vec<ExperimentResult>
@@ -134,7 +154,7 @@ where
     let results: Vec<ExperimentResult> = (0..iterations)
         .into_par_iter()
         .map(|_| {
-            let r = experiment_progress(n, m, max_len, progress_callback);
+            let r = experiment_progress(n, m, max_len, overflow_max, progress_callback);
             iteration_progress_callback(n);
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
