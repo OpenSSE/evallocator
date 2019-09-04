@@ -70,7 +70,10 @@ where
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
-pub struct ModeStats (usize,usize,f64,f64); // (min,max,mean,var)
+pub struct ModeStats(usize, usize, f64, f64); // (min,max,mean,var)
+
+#[derive(Debug, Clone, Copy, Serialize)]
+struct ModeStatsAux(usize, usize, usize, usize); // (min,max,sum,sum_square)
 
 pub fn compute_modes_stat<'a, I>(iter: I, max: usize) -> Vec<ModeStats>
 // (Vec<f64>,Vec<f64>)
@@ -82,71 +85,51 @@ where
     // let mut modes_min = vec![usize::max_value(); max + 1];
     // let mut modes_max = vec![0; max + 1];
 
-    let mut modes_stats = vec![ModeStats(usize::max_value(),0,0.,0.); max+1];
+    let mut modes_stats = vec![ModeStatsAux(usize::max_value(), 0, 0, 0); max + 1];
 
     let mut count = 0;
 
     for m in iter {
         for i in 0..m.len() {
-            let ModeStats(min,max,mean,var) = modes_stats[i];
+            let ModeStatsAux(min, max, sum, sum_square) = modes_stats[i];
 
-            modes_stats[i] = ModeStats(min.min(m[i]), max.max(m[i]), mean+ (m[i] as f64), var + ((m[i]*m[i]) as f64));
-            // modes_sum[i] += m[i];
-            // modes_square[i] += m[i]*m[i];
-            // modes_min[i] = modes_min[i].min(m[i]);
-            // modes_max[i] = modes_max[i].max(m[i]);
+            modes_stats[i] = ModeStatsAux(
+                min.min(m[i]),
+                max.max(m[i]),
+                sum + m[i],
+                sum_square + (m[i] * m[i]),
+            );
         }
         count += 1;
     }
 
-    modes_stats.into_iter().map(|ModeStats(min,max,mean,var)| 
-    {
-        let m = mean/(count as f64);
-        ModeStats(min,max,m, var/(count as f64) - m*m)
-    }).collect()
-    // let modes_mean: Vec<f64> =
-    // modes_sum
-    //     .into_iter()
-    //     .map(|m| {
-    //         if m == 0 {
-    //             0.0
-    //         } else {
-    //             (m as f64) / (count as f64)
-    //         }
-    //     })
-    //     .collect();
-    // // for i in 0..modes.len() {
-    // //     modes[i] /= count as f64;
-    // // }
+    if count == 0 {
+        return Vec::<ModeStats>::new();
+    }
 
-    // let mut modes_var: Vec<f64> =
-    // modes_square
-    //     .into_iter()
-    //     .map(|m| {
-    //         if m == 0 {
-    //             0.0
-    //         } else {
-    //             (m as f64) / (count as f64)
-    //         }
-    //     })
-    //     .collect();
-
-    // for i in 0..modes_var.len()  {
-    //     modes_var[i] -= modes_mean[i]*modes_mean[i];
-    // }
-    // (modes_mean,modes_var)
-
-    // modes_sum.into_iter().zip(modes_square.into_iter()).zip(modes_min.into_iter()).zip(modes_max.into_iter()).map(|(sum,square,min,max)| ).collect();
+    modes_stats
+        .into_iter()
+        .map(|ModeStatsAux(min, max, sum, sum_square)| {
+            let mean = (sum as f64) / (count as f64);
+            ModeStats(
+                min,
+                max,
+                mean,
+                ((sum_square as f64) / (count as f64)) - mean * mean,
+            )
+        })
+        .collect()
 }
 
 pub fn compute_overflow_stat<'a, I>(iter: I, overflow_limit: usize) -> usize
 where
     I: Iterator<Item = &'a usize>,
 {
-    (0..).zip(iter)
+    (0..)
+        .zip(iter)
         .map(|(i, x)| {
             if i > overflow_limit {
-                (i-overflow_limit) * x
+                (i - overflow_limit) * x
             } else {
                 0
             }
