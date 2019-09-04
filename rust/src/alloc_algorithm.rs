@@ -30,6 +30,6 @@ pub struct AllocStats {
     pub parameters: AllocParams,
     pub size: crate::utils::Stats,
     pub load: crate::utils::Stats,
-    pub load_modes: Vec<f64>,
-    pub overflows: Vec<f64>,
+    pub load_modes: Vec<crate::utils::ModeStats>,
+    pub overflows: Vec<crate::utils::ModeStats>,
 }
