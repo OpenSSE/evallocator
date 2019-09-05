@@ -110,12 +110,12 @@ where
     modes_stats
         .into_iter()
         .map(|ModeStatsAux(min, max, sum, sum_square)| {
-            let mean = (sum as f64) / (count as f64);
+            let mean = (sum as f64) / f64::from(count);
             ModeStats(
                 min,
                 max,
                 mean,
-                ((sum_square as f64) / (count as f64)) - mean * mean,
+                ((sum_square as f64) / f64::from(count)) - mean * mean,
             )
         })
         .collect()

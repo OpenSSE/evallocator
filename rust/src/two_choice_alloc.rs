@@ -187,7 +187,7 @@ where
     let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
     let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
-    let overflows = (0..overflow_max + 1)
+    let overflows = (0..=overflow_max)
         .map(|of| compute_overflow_stat(load_modes.iter(), of))
         .collect();
 
@@ -211,7 +211,7 @@ pub fn experiment(
     let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
     let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
-    let overflows = (0..overflow_max + 1)
+    let overflows = (0..=overflow_max)
         .map(|of| compute_overflow_stat(load_modes.iter(), of))
         .collect();
 
