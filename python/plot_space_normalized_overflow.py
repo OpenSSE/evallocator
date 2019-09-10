@@ -13,7 +13,7 @@ import json
 import math
 
 
-def plot_file(filename, label):
+def plot_file(filename, label, add_overflow_overhead):
     cmap = plt.get_cmap('jet')
     N = 20
 
@@ -41,7 +41,11 @@ def plot_file(filename, label):
                         break
 
                     # count == alpha before incrementing
-                    overhead.append(float(count) * base_overhead)
+                    if(add_overflow_overhead):
+                        overhead.append(
+                            (float(count)*base_overhead) + (overflow_stat[1] / n))
+                    else:
+                        overhead.append(float(count)*base_overhead)
 
                     stat_min.append(overflow_stat[0]/n)
                     stat_max.append(overflow_stat[1]/n)
@@ -95,6 +99,8 @@ parser.add_argument('filename', metavar='path',
                     help='Path to a JSON file')
 parser.add_argument('--label', '-l', default='n',
                     help='Define the used label')
+parser.add_argument('--overflow-overhead', '-oo', action='store_true',
+                    help='Account for the overflow (stash) overhead')
 
 args = parser.parse_args()
 # print(args)
@@ -102,4 +108,4 @@ args = parser.parse_args()
 # filename = "../experiments/var_n_m/large_m_res.json"
 # filename = "../experiments/var_max_len/one_choice_res.json"
 
-plot_file(args.filename, args.label)
+plot_file(args.filename, args.label, args.overflow_overhead)
