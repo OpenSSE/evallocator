@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum AllocAlgorithm {
     OneChoiceAllocation,
+    BlockedOneChoiceAllocation,
     TwoChoiceAllocation,
 }
 
@@ -14,6 +15,7 @@ pub struct AllocParams {
     pub overflow_max: usize,
     pub algorithm: AllocAlgorithm,
     pub pad_power_2: bool,
+    pub block_size: usize,
     pub iterations: usize,
 }
 

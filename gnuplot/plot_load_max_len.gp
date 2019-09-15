@@ -19,6 +19,6 @@ set datafile separator ","
 
 set logscale x 2
 
-plot    filename using 3:10 title "Mean maximum load" with linespoints,\
-        filename using 3:8 title "Max maximum load" with linespoints,\
-        filename using 3:9 title "Min maximum load" with linespoints
+plot    filename using 3:12 title "Mean maximum load" with linespoints,\
+        filename using 3:10 title "Max maximum load" with linespoints,\
+        filename using 3:11 title "Min maximum load" with linespoints

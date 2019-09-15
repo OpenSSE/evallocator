@@ -6,7 +6,10 @@
     "overflow_max": 5,
     "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
-    "pad_power_2": true,
+    "    "pad_power_2": true,
+    "block_size": 1024,
+    "block_size": 1024,
+": true,
     "iterations": 100
   },
   {
@@ -16,7 +19,10 @@
     "overflow_max": 5,
     "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
-    "pad_power_2": true,
+    "    "pad_power_2": true,
+    "block_size": 1024,
+    "block_size": 1024,
+": true,
     "iterations": 100
   },
   {
@@ -26,7 +32,10 @@
     "overflow_max": 5,
     "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
-    "pad_power_2": true,
+    "    "pad_power_2": true,
+    "block_size": 1024,
+    "block_size": 1024,
+": true,
     "iterations": 100
   },
   {
@@ -36,7 +45,10 @@
     "overflow_max": 5,
     "overflow_max": 5,
     "algorithm": "TwoChoiceAllocation",
-    "pad_power_2": true,
+    "    "pad_power_2": true,
+    "block_size": 1024,
+    "block_size": 1024,
+": true,
     "iterations": 100
   }
 ]

@@ -31,10 +31,12 @@ The configuration file is a list of the following key-value pairs:
     "overflow_max": 5,
     "algorithm": "OneChoiceAllocation",
     "pad_power_2": true,
+    "block_size": 1024,
     "iterations": 10
   }
 ```
-where `n` is the number of elements to insert, `m` the number of buckets, `max_len` the maximum list length, "overflow_max" is the maximum value used to compute the total number of overflowing balls, `algorithm` the allocation algorithm (for now, only the `"OneChoiceAllocation"` and `"TwoChoiceAllocation"` algorithms are supported), `pad_power_2` forces the lists' length to be powers of two (only used in the two choice allocation algorithm), and `iterations` is the number of experiments to run with these parameters.
+where `n` is the number of elements to insert, `m` the number of buckets, `max_len` the maximum list length, "overflow_max" is the maximum value used to compute the total number of overflowing balls, `algorithm` the allocation algorithm (for now, only the `"OneChoiceAllocation"`, `"BlockedOneChoiceAllocation"`
+ and `"TwoChoiceAllocation"` algorithms are supported), `pad_power_2` forces the lists' length to be powers of two (only used in the two choice allocation algorithm), `block_size` is the size of meta buckets (the number of buckets in a meta bucket, for the blocked one choice allocation algorithm), and `iterations` is the number of experiments to run with these parameters.
 The file [`example_config.json`](rust/example_config.json
 ) gives an example of such configuration file.
 

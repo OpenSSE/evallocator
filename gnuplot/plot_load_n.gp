@@ -25,13 +25,16 @@ set logscale x 2
 # fit f(x) "<(sed -e '/TwoChoice/!d' ".filename.")" using ($1/$2):10 via a, b
 
 
-plot    "<(sed -e '/OneChoice/!d' ".filename.")" using 1:10 title "One choice mean maximum load" with linespoints,\
-        "<(sed -e '/OneChoice/!d' ".filename.")" using 1:8 title "One choice max maximum load" with linespoints,\
-        "<(sed -e '/OneChoice/!d' ".filename.")" using 1:9 title "One choice min maximum load" with linespoints, \
-        "<(sed -e '/OneChoice/!d' ".filename.")" using 1:(3*$1/$2) title "One choice expected max load 3n/m" with lines,\
-        "<(sed -e '/TwoChoice/!d' ".filename.")" using 1:10 title "Two choice mean maximum load" with linespoints,\
-        "<(sed -e '/TwoChoice/!d' ".filename.")" using 1:8 title "Two choice max maximum load" with linespoints,\
-        "<(sed -e '/TwoChoice/!d' ".filename.")" using 1:9 title "Two choice min maximum load" with linespoints
+plot    "<(sed -e '/,OneChoice/!d' ".filename.")" using 1:12 title "One choice mean maximum load" with linespoints,\
+        "<(sed -e '/,OneChoice/!d' ".filename.")" using 1:10 title "One choice max maximum load" with linespoints,\
+        "<(sed -e '/,OneChoice/!d' ".filename.")" using 1:11 title "One choice min maximum load" with linespoints, \
+        "<(sed -e '/,BlockedOneChoice/!d' ".filename.")" using 1:12 title "Blocked One choice mean maximum load" with linespoints,\
+        "<(sed -e '/,BlockedOneChoice/!d' ".filename.")" using 1:10 title "Blocked One choice max maximum load" with linespoints,\
+        "<(sed -e '/,BlockedOneChoice/!d' ".filename.")" using 1:11 title "Blocked One choice min maximum load" with linespoints, \
+        "<(sed -e '/,OneChoice/!d' ".filename.")" using 1:(3*$1/$2) title "One choice expected max load 3n/m" with lines,\
+        "<(sed -e '/,TwoChoice/!d' ".filename.")" using 1:12 title "Two choice mean maximum load" with linespoints,\
+        "<(sed -e '/,TwoChoice/!d' ".filename.")" using 1:10 title "Two choice max maximum load" with linespoints,\
+        "<(sed -e '/,TwoChoice/!d' ".filename.")" using 1:11 title "Two choice min maximum load" with linespoints
 
 
 

@@ -8,6 +8,7 @@ mod alloc_algorithm;
 use alloc_algorithm::*;
 
 mod one_choice_alloc;
+mod blocked_one_choice_alloc;
 mod two_choice_alloc;
 
 extern crate gnuplot;
@@ -115,6 +116,16 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.n,
                         p.m,
                         p.max_len,
+                        p.overflow_max,
+                        false,
+                        iteration_progress_callback,
+                    ),
+                    AllocAlgorithm::BlockedOneChoiceAllocation => blocked_one_choice_alloc::iterated_experiment(
+                        p.iterations,
+                        p.n,
+                        p.m,
+                        p.max_len,
+                        p.block_size,
                         p.overflow_max,
                         false,
                         iteration_progress_callback,
