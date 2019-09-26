@@ -38,7 +38,7 @@ where
         let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
         let meta_bucket: usize = rng.gen_range(0, mb);
         let b: usize = rng.gen_range(0, block_size);
-        let offset = block_size*meta_bucket;
+        let offset = block_size * meta_bucket;
 
         for i in 0..l {
             let bi = (i + b) % block_size;
@@ -52,8 +52,13 @@ where
     buckets
 }
 
-pub fn alloc(n: usize, m: usize, max_len: usize,
-    block_size: usize, show_progress: bool) -> Vec<usize> {
+pub fn alloc(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    block_size: usize,
+    show_progress: bool,
+) -> Vec<usize> {
     let pb = ProgressBar::new(n as u64);
     if show_progress {
         pb.set_style(ProgressStyle::default_bar()
@@ -87,7 +92,7 @@ pub fn experiment_progress<F>(
 where
     F: FnMut(usize, usize),
 {
-    let rand_alloc = alloc_progress(n, m, max_len,block_size, progress_callback);
+    let rand_alloc = alloc_progress(n, m, max_len, block_size, progress_callback);
     let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
     let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
