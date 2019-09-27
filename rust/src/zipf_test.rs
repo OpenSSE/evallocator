@@ -95,6 +95,46 @@ fn plot_histogram(hist: &[usize]) {
     fg.show();
 }
 
+fn plot_stats(stats: &[(usize, utils::ModeStats)]) {
+    let mut fg = Figure::new();
+    let x: Vec<usize> = stats.into_iter().map(|(i, _)| *i).collect();
+    let mean: Vec<f64> = stats
+        .into_iter()
+        .map(|(_, utils::ModeStats(_, _, mean, _))| *mean)
+        .collect();
+    let max: Vec<usize> = stats
+        .into_iter()
+        .map(|(_, utils::ModeStats(_, max, _, _))| *max)
+        .collect();
+    let min: Vec<usize> = stats
+        .into_iter()
+        .map(|(_, utils::ModeStats(min, _, _, _))| *min)
+        .collect();
+
+    fg.axes2d().lines_points(&x ,&max,
+            &[
+                Caption("Max"),
+                PointSymbol('+'),
+                LineWidth(1.0),
+                LineStyle(Dash),
+                Color("red"),
+            ]).lines_points(&x ,&min,
+            &[
+                Caption("Min"),
+                PointSymbol('+'),
+                LineWidth(1.0),
+                LineStyle(Dash),
+                Color("green"),
+            ]).lines_points(&x ,&mean,
+            &[
+                Caption("Mean"),
+                PointSymbol('+'),
+                LineWidth(1.0),
+                Color("blue"),
+            ]);
+    fg.show();
+}
+
 fn multimod(x: usize, moduli: &[usize]) -> Vec<usize> {
     moduli.iter().map(|m| x % m).collect()
 }
@@ -119,11 +159,14 @@ fn cli_plot(args: PlotCliArgs) {
 }
 
 fn cli_sample(args: TruncatedZipfExpCliArgs) {
-    let samples: Vec<Vec<usize>> = (0..args.iterations).into_iter().map(|_| {
-        let bins = sample_zipf(args.sampling_params);
+    let samples: Vec<Vec<usize>> = (0..args.iterations)
+        .into_iter()
+        .map(|_| {
+            let bins = sample_zipf(args.sampling_params);
 
-        compute_remaining(&bins, &args.moduli)
-    }).collect();
+            compute_remaining(&bins, &args.moduli)
+        })
+        .collect();
 
     // println!("{:?}", samples);
 
@@ -132,6 +175,8 @@ fn cli_sample(args: TruncatedZipfExpCliArgs) {
     let printable_res: Vec<(usize, utils::ModeStats)> =
         args.moduli.into_iter().zip(stats.into_iter()).collect();
     println!("{:?}", printable_res);
+
+    plot_stats(&printable_res);
 }
 
 fn main() {

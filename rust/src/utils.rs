@@ -70,7 +70,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
-pub struct ModeStats(usize, usize, f64, f64); // (min,max,mean,var)
+pub struct ModeStats(pub usize, pub usize, pub f64, pub f64); // (min,max,mean,var)
 
 #[derive(Debug, Clone, Copy, Serialize)]
 struct ModeStatsAux(usize, usize, usize, usize); // (min,max,sum,sum_square)
