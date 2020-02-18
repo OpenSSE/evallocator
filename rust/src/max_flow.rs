@@ -21,7 +21,7 @@ struct Graph {
     edges: Vec<Edge>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum TraversalAlgorithm {
     DepthFirstSearch,
     BreadthFirstSearch,
@@ -204,13 +204,18 @@ impl Graph {
         self.find_path(source, sink, TraversalAlgorithm::DepthFirstSearch)
     }
 
-    fn ford_fulkerson(&self, source: usize, sink: usize) -> Graph {
+    fn compute_max_flow(
+        &self,
+        source: usize,
+        sink: usize,
+        traversal_alg: TraversalAlgorithm,
+    ) -> Graph {
         let mut res_graph = Graph::new_residual_graph(self);
 
         let mut max_flow = 0;
         let n_original_edges = self.edges.len();
         loop {
-            match res_graph.find_path(source, sink, TraversalAlgorithm::DepthFirstSearch) {
+            match res_graph.find_path(source, sink, traversal_alg) {
                 None => break,
                 Some((path, path_flow)) => {
                     for e in path {
@@ -231,6 +236,7 @@ impl Graph {
 
         println!("Max flow {}", max_flow);
 
+        res_graph.transform_residual_to_flow();
         res_graph
     }
 
@@ -263,32 +269,12 @@ impl Graph {
         //         e.capacity = self.edges[i + n_real_edges].capacity;
         //     });
 
-        for i in (0..n_real_edges) {
+        for i in 0..n_real_edges {
             self.edges[i].capacity = self.edges[i + n_real_edges].capacity;
         }
 
         // remove the now unnecessary edges
         self.edges.truncate(n_real_edges);
-    }
-
-    // Removes edges whose indices are larger than `edge_index`
-    fn trim_edges(&mut self, edge_index: usize) {
-        for v in self.vertices.iter_mut() {
-            v.in_edges = v
-                .in_edges
-                .iter()
-                .filter(|e| edge_index > **e)
-                .map(|e| *e) // why do we need that ??
-                .collect();
-
-            v.out_edges = v
-                .out_edges
-                .iter()
-                .filter(|e| edge_index > **e)
-                .map(|e| *e)
-                .collect();
-        }
-        self.edges.truncate(edge_index);
     }
 }
 
@@ -318,13 +304,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("Path a->f : {:?}", g.find_path_bfs(a, f));
     // println!("Path a->f : {:?}", g.find_path_dfs(a, f));
 
-    println!("\n\nResidual Graph: {:?}", Graph::new_residual_graph(&g));
-
-    let mut ff = g.ford_fulkerson(a, f);
+    let ff = g.compute_max_flow(a, f, TraversalAlgorithm::DepthFirstSearch);
     println!("\n\nFF Graph: {:?}", ff);
-
-    ff.transform_residual_to_flow();
-    println!("\n\nTrimmed FF Graph: {:?}", ff);
 
     Ok(())
 }
