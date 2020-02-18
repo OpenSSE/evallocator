@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+extern crate rand;
+use rand::prelude::*;
 
 #[derive(Debug, Clone)]
 struct Edge {
@@ -278,34 +280,68 @@ impl Graph {
     }
 }
 
+fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
+    let mut graph = Graph::new();
+
+    for i in 0..n_vertices {
+        graph.add_vertex(i as u64);
+    }
+
+    let mut rng = thread_rng();
+
+    for i in 0..n_edges {
+        let s = rng.gen_range(0, n_vertices);
+        let mut e = rng.gen_range(0, n_vertices);
+
+        while e == s {
+            // avoid loops
+            e = rng.gen_range(0, n_vertices);
+        }
+        graph.add_edge(i as u64, s, e, 1);
+    }
+
+    graph
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Max Flow");
 
-    let mut g = Graph::new();
+    // let mut g = Graph::new();
 
-    let a = g.add_vertex(31);
-    let b = g.add_vertex(32);
-    let c = g.add_vertex(33);
-    let d = g.add_vertex(34);
-    let e = g.add_vertex(35);
-    let f = g.add_vertex(36);
+    // let a = g.add_vertex(31);
+    // let b = g.add_vertex(32);
+    // let c = g.add_vertex(33);
+    // let d = g.add_vertex(34);
+    // let e = g.add_vertex(35);
+    // let f = g.add_vertex(36);
 
-    g.add_edge(40, a, b, 10);
-    g.add_edge(41, b, c, 5);
-    g.add_edge(43, b, d, 7);
-    g.add_edge(44, c, e, 7);
-    g.add_edge(45, e, f, 7);
-    g.add_edge(46, d, f, 7);
+    // g.add_edge(40, a, b, 10);
+    // g.add_edge(41, b, c, 5);
+    // g.add_edge(43, b, d, 7);
+    // g.add_edge(44, c, e, 7);
+    // g.add_edge(45, e, f, 7);
+    // g.add_edge(46, d, f, 7);
 
-    println!("Graph: {:?}", g);
+    let n_edges = 1 << 20 as usize;
+    let n_vertices = 1 << 10 as usize;
+
+    println!(
+        "Generate graph with {} vertices and {} edges of capacity 1",
+        n_edges, n_vertices
+    );
+
+    let g = generate_random_graph(n_vertices, n_edges);
+    // println!("Graph: {:?}", g);
+    println!("Graph generated!");
 
     // println!("Path a->c : {:?}", g.find_path(a, c));
     // println!("Path a->d : {:?}", g.find_path(a, d));
     // println!("Path a->f : {:?}", g.find_path_bfs(a, f));
     // println!("Path a->f : {:?}", g.find_path_dfs(a, f));
 
-    let ff = g.compute_max_flow(a, f, TraversalAlgorithm::DepthFirstSearch);
-    println!("\n\nFF Graph: {:?}", ff);
+    println!("Start computing max flow...");
+    let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
+    println!("Max flow graph computed...");
+    // println!("\n\nFF Graph: {:?}", ff);
 
     Ok(())
 }
