@@ -12,6 +12,10 @@ path = "src/main.rs"
 name = "zipf_test"
 path = "src/zipf_test.rs"
 
+[[bin]]
+name = "max_flow"
+path = "src/max_flow.rs"
+
 
 [dependencies]
 rand = "^0.7.0"
