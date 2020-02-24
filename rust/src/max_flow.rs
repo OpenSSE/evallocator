@@ -1,6 +1,16 @@
+#![allow(dead_code)]
+
 use std::collections::VecDeque;
 extern crate rand;
 use rand::prelude::*;
+
+use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use indicatif::{ProgressBar, ProgressStyle};
+
+pub use crate::alloc_algorithm::*;
+pub use crate::utils::*;
 
 #[derive(Debug, Clone)]
 struct Edge {
@@ -111,6 +121,46 @@ impl Graph {
         } else {
             panic!("Invalid ending vertex");
         }
+    }
+
+    fn vertex_count(&self) -> usize {
+        self.vertices.len()
+    }
+
+    fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    fn in_edge_count(&self, vertex: usize) -> usize {
+        assert!(vertex < self.vertex_count());
+
+        self.vertices[vertex].in_edges.len()
+    }
+
+    fn in_edge_capacity(&self, vertex: usize) -> u64 {
+        assert!(vertex < self.vertex_count());
+
+        self.vertices[vertex]
+            .in_edges
+            .iter()
+            .map(|&e| self.edges[e].capacity)
+            .sum::<i64>() as u64
+    }
+
+    fn out_edge_count(&self, vertex: usize) -> usize {
+        assert!(vertex < self.vertex_count());
+
+        self.vertices[vertex].out_edges.len()
+    }
+
+    fn out_edge_capacity(&self, vertex: usize) -> u64 {
+        assert!(vertex < self.vertex_count());
+
+        self.vertices[vertex]
+            .out_edges
+            .iter()
+            .map(|&e| self.edges[e].capacity)
+            .sum::<i64>() as u64
     }
 
     // Takes a source and a sink and finds a path from the source to the sink.
@@ -252,7 +302,7 @@ impl Graph {
             }
         }
 
-        println!("Max flow {}", max_flow);
+        // println!("Max flow {}", max_flow);
 
         res_graph.transform_residual_to_flow();
         res_graph
@@ -319,8 +369,8 @@ fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
     graph
 }
 
-fn flow_alloc(n: usize, m: usize, max_len: usize) -> Vec<usize> {
-    let mut remaining_elements = n;
+fn flow_alloc(n: usize, m: usize, max_len: u64) -> Vec<usize> {
+    let mut remaining_elements = n as u64;
 
     let mut rng = thread_rng();
 
@@ -328,16 +378,16 @@ fn flow_alloc(n: usize, m: usize, max_len: usize) -> Vec<usize> {
     // by convention, the source has index m and the sink has index m+1
     let mut graph = Graph::new_with_vertices(m + 2);
 
-    let list_index: u64 = 0;
+    let mut list_index: u64 = 0;
 
     while remaining_elements != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
+        let l: u64 = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
         let h1: usize = rng.gen_range(0, m);
         let h2: usize = rng.gen_range(0, m);
 
         // Adding a list of size l consists in adding an edge of capacity l
         // between to random vertices
-        g.add_vertex(list_index, h1, h2, l);
+        graph.add_edge(list_index, h1, h2, l);
 
         remaining_elements -= l;
         list_index += 1;
@@ -346,52 +396,192 @@ fn flow_alloc(n: usize, m: usize, max_len: usize) -> Vec<usize> {
     // OK, now we have to add the edges originating from the source and the
     // ones ending at the sink to 'encode' overflowing and underflowing nodes.
 
-    // It is time to max flow !
-    let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
+    let mut additional_label = 2 * list_index;
+
+    for v in 0..m {
+        let out_count = graph.out_edge_capacity(v);
+
+        if out_count > max_len {
+            // this is an overflowing vertex
+            // add capacity from the source
+            graph.add_edge(additional_label, m, v, out_count - max_len);
+            additional_label += 1;
+        } else if out_count < max_len {
+            // this is a vertex with remaining space
+            // add capacity to the sink
+            graph.add_edge(additional_label, v, m + 1, max_len - out_count);
+            additional_label += 1;
+        }
+    }
+
+    // It is time to max flow!
+    let ff = graph.compute_max_flow(m, m + 1, TraversalAlgorithm::DepthFirstSearch);
 
     // and now, look at the results.
+    (0..m).map(|v| ff.out_edge_capacity(v) as usize).collect()
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Max Flow");
+pub fn experiment_progress<F>(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    overflow_max: usize,
+    progress_callback: F,
+) -> ExperimentResult
+where
+    F: FnMut(usize, usize),
+{
+    let rand_alloc = flow_alloc(n, m, max_len as u64);
+    let size = rand_alloc.iter().sum();
+    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
+    let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
+    let overflows = (0..=overflow_max)
+        .map(|of| compute_overflow_stat(load_modes.iter(), of))
+        .collect();
 
-    // let mut g = Graph::new();
-
-    // let a = g.add_vertex(31);
-    // let b = g.add_vertex(32);
-    // let c = g.add_vertex(33);
-    // let d = g.add_vertex(34);
-    // let e = g.add_vertex(35);
-    // let f = g.add_vertex(36);
-
-    // g.add_edge(40, a, b, 10);
-    // g.add_edge(41, b, c, 5);
-    // g.add_edge(43, b, d, 7);
-    // g.add_edge(44, c, e, 7);
-    // g.add_edge(45, e, f, 7);
-    // g.add_edge(46, d, f, 7);
-
-    let n_edges = 1 << 20 as usize;
-    let n_vertices = 1 << 10 as usize;
-
-    println!(
-        "Generate graph with {} vertices and {} edges of capacity 1",
-        n_edges, n_vertices
-    );
-
-    let g = generate_random_graph(n_vertices, n_edges);
-    // println!("Graph: {:?}", g);
-    println!("Graph generated!");
-
-    // println!("Path a->c : {:?}", g.find_path(a, c));
-    // println!("Path a->d : {:?}", g.find_path(a, d));
-    // println!("Path a->f : {:?}", g.find_path_bfs(a, f));
-    // println!("Path a->f : {:?}", g.find_path_dfs(a, f));
-
-    println!("Start computing max flow...");
-    let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
-    println!("Max flow graph computed...");
-    // println!("\n\nFF Graph: {:?}", ff);
-
-    Ok(())
+    ExperimentResult {
+        size,
+        max_load,
+        load_modes,
+        overflows,
+    }
 }
+
+pub fn experiment(
+    n: usize,
+    m: usize,
+    max_len: usize,
+    overflow_max: usize,
+    show_progress: bool,
+) -> ExperimentResult {
+    let rand_alloc = flow_alloc(n, m, max_len as u64);
+    let size = rand_alloc.iter().sum();
+    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
+    let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
+    let overflows = (0..=overflow_max)
+        .map(|of| compute_overflow_stat(load_modes.iter(), of))
+        .collect();
+
+    ExperimentResult {
+        size,
+        max_load,
+        load_modes,
+        overflows,
+    }
+}
+
+pub fn iterated_experiment<F>(
+    iterations: usize,
+    n: usize,
+    m: usize,
+    max_len: usize,
+    overflow_max: usize,
+    show_progress: bool,
+    iteration_progress_callback: F,
+) -> Vec<ExperimentResult>
+where
+    F: Fn(usize) + Send + Sync,
+{
+    // println!(
+    // "{} one choice allocation iterations with N={}, m={}, max_len={}",
+    // iterations, n, m, max_len
+    // );
+
+    let elements_pb = ProgressBar::new((iterations * n) as u64);
+    if show_progress {
+        elements_pb.set_style(ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {msg} [{bar:40.cyan/blue}] ({pos}/{len} elts - {percent}%) | ETA: {eta_precise}")
+        .progress_chars("##-"));
+        elements_pb.set_draw_delta(1_000_000);
+    }
+
+    let progress_callback = |_, l: usize| {
+        if show_progress {
+            elements_pb.inc(l as u64);
+        }
+    };
+
+    let mut iter_completed = AtomicUsize::new(0);
+
+    if show_progress {
+        elements_pb.set_position(0);
+        elements_pb.set_message(&format!(
+            "{}/{} iterations",
+            *iter_completed.get_mut(),
+            iterations
+        ));
+    }
+
+    let results: Vec<ExperimentResult> = (0..iterations)
+        .into_par_iter()
+        .map(|_| {
+            let r = experiment_progress(n, m, max_len, overflow_max, progress_callback);
+            iteration_progress_callback(n);
+
+            let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
+            if show_progress {
+                elements_pb.set_message(&format!(
+                    "{}/{} iterations",
+                    previous_count + 1,
+                    iterations
+                ));
+            }
+            r
+        })
+        .collect();
+
+    if show_progress {
+        elements_pb.finish_with_message("Done!");
+    }
+
+    results
+}
+
+// fn main() -> Result<(), Box<dyn std::error::Error>> {
+//     let allocation = flow_alloc(1000, 1000, 10);
+
+//     Ok(())
+// }
+// fn main() -> Result<(), Box<dyn std::error::Error>> {
+//     println!("Max Flow");
+
+//     // let mut g = Graph::new();
+
+//     // let a = g.add_vertex(31);
+//     // let b = g.add_vertex(32);
+//     // let c = g.add_vertex(33);
+//     // let d = g.add_vertex(34);
+//     // let e = g.add_vertex(35);
+//     // let f = g.add_vertex(36);
+
+//     // g.add_edge(40, a, b, 10);
+//     // g.add_edge(41, b, c, 5);
+//     // g.add_edge(43, b, d, 7);
+//     // g.add_edge(44, c, e, 7);
+//     // g.add_edge(45, e, f, 7);
+//     // g.add_edge(46, d, f, 7);
+
+//     let n_edges = 1 << 20 as usize;
+//     let n_vertices = 1 << 10 as usize;
+
+//     println!(
+//         "Generate graph with {} vertices and {} edges of capacity 1",
+//         n_edges, n_vertices
+//     );
+
+//     let g = generate_random_graph(n_vertices, n_edges);
+//     // println!("Graph: {:?}", g);
+//     println!("Graph generated!");
+
+//     // println!("Path a->c : {:?}", g.find_path(a, c));
+//     // println!("Path a->d : {:?}", g.find_path(a, d));
+//     // println!("Path a->f : {:?}", g.find_path_bfs(a, f));
+//     // println!("Path a->f : {:?}", g.find_path_dfs(a, f));
+
+//     println!("Start computing max flow...");
+//     let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
+//     println!("Max flow graph computed...");
+//     // println!("\n\nFF Graph: {:?}", ff);
+
+//     Ok(())
+// }

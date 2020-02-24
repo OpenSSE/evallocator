@@ -90,7 +90,7 @@ where
     let mut count = 0;
 
     for m in iter {
-        for i in 0..m.len() {
+        for i in 0..(m.len().min(max + 1)) {
             let ModeStatsAux(min, max, sum, sum_square) = modes_stats[i];
 
             modes_stats[i] = ModeStatsAux(

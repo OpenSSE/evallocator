@@ -8,6 +8,7 @@ mod alloc_algorithm;
 use alloc_algorithm::*;
 
 mod blocked_one_choice_alloc;
+mod max_flow;
 mod one_choice_alloc;
 mod two_choice_alloc;
 
@@ -139,6 +140,15 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         p.max_len,
                         p.overflow_max,
                         p.pad_power_2,
+                        false,
+                        iteration_progress_callback,
+                    ),
+                    AllocAlgorithm::MaxFlowAllocation => max_flow::iterated_experiment(
+                        p.iterations,
+                        p.n,
+                        p.m,
+                        p.max_len,
+                        p.max_len,
                         false,
                         iteration_progress_callback,
                     ),
