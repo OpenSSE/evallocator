@@ -37,6 +37,22 @@ impl Graph {
         }
     }
 
+    fn new_with_vertices(n_vertices: usize) -> Graph {
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(n_vertices);
+        for i in 0..n_vertices {
+            let v = Vertex {
+                label: i as u64,
+                in_edges: Vec::new(),
+                out_edges: Vec::new(),
+            };
+            vertices.push(v);
+        }
+        Graph {
+            vertices: vertices,
+            edges: Vec::new(),
+        }
+    }
+
     // Construct a residual graph for the Ford-Fulkerson algorithm
     // from the input graph
     // An important invariant is that an edge with index e in the original
@@ -302,6 +318,40 @@ fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
 
     graph
 }
+
+fn flow_alloc(n: usize, m: usize, max_len: usize) -> Vec<usize> {
+    let mut remaining_elements = n;
+
+    let mut rng = thread_rng();
+
+    // create a new graph with m+2 vertices: one per bucket + a source and a sink
+    // by convention, the source has index m and the sink has index m+1
+    let mut graph = Graph::new_with_vertices(m + 2);
+
+    let list_index: u64 = 0;
+
+    while remaining_elements != 0 {
+        let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
+        let h1: usize = rng.gen_range(0, m);
+        let h2: usize = rng.gen_range(0, m);
+
+        // Adding a list of size l consists in adding an edge of capacity l
+        // between to random vertices
+        g.add_vertex(list_index, h1, h2, l);
+
+        remaining_elements -= l;
+        list_index += 1;
+    }
+
+    // OK, now we have to add the edges originating from the source and the
+    // ones ending at the sink to 'encode' overflowing and underflowing nodes.
+
+    // It is time to max flow !
+    let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
+
+    // and now, look at the results.
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Max Flow");
 
