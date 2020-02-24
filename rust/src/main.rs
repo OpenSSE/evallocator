@@ -143,15 +143,15 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                         false,
                         iteration_progress_callback,
                     ),
-                    AllocAlgorithm::MaxFlowAllocation => max_flow::iterated_experiment(
-                        p.iterations,
-                        p.n,
-                        p.m,
-                        p.max_len,
-                        p.max_len,
-                        false,
-                        iteration_progress_callback,
-                    ),
+                    // AllocAlgorithm::MaxFlowAllocation => max_flow::iterated_experiment(
+                    //     p.iterations,
+                    //     p.n,
+                    //     p.m,
+                    //     p.max_len,
+                    //     p.max_len,
+                    //     false,
+                    //     iteration_progress_callback,
+                    // ),
                 },
                 // two_choice_alloc::iterated_experiment(
             )

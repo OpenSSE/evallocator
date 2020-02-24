@@ -5,7 +5,7 @@ pub enum AllocAlgorithm {
     OneChoiceAllocation,
     BlockedOneChoiceAllocation,
     TwoChoiceAllocation,
-    MaxFlowAllocation,
+    // MaxFlowAllocation,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

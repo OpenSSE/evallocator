@@ -8,8 +8,8 @@ use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::{Deserialize, Serialize};
 
-pub use crate::alloc_algorithm::*;
 pub use crate::utils::*;
 
 #[derive(Debug, Clone)]
@@ -369,25 +369,41 @@ fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
     graph
 }
 
-fn flow_alloc(n: usize, m: usize, max_len: u64) -> Vec<usize> {
-    let mut remaining_elements = n as u64;
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct MaxFlowAllocExperimentParams {
+    pub n: usize,
+    pub m: usize,
+    pub list_max_len: usize,
+    pub bucket_capacity: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MaxFlowExperimentResult {
+    pub size: usize,
+    pub max_load: usize,
+    pub load_modes: Vec<usize>,
+    pub stash_size: usize,
+}
+
+fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
+    let mut remaining_elements = params.n;
 
     let mut rng = thread_rng();
 
     // create a new graph with m+2 vertices: one per bucket + a source and a sink
     // by convention, the source has index m and the sink has index m+1
-    let mut graph = Graph::new_with_vertices(m + 2);
+    let mut graph = Graph::new_with_vertices(params.m + 2);
 
     let mut list_index: u64 = 0;
 
     while remaining_elements != 0 {
-        let l: u64 = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
-        let h1: usize = rng.gen_range(0, m);
-        let h2: usize = rng.gen_range(0, m);
+        let l: usize = rng.gen_range(0, params.list_max_len.min(remaining_elements)) + 1;
+        let h1: usize = rng.gen_range(0, params.m);
+        let h2: usize = rng.gen_range(0, params.m);
 
         // Adding a list of size l consists in adding an edge of capacity l
         // between to random vertices
-        graph.add_edge(list_index, h1, h2, l);
+        graph.add_edge(list_index, h1, h2, l as u64);
 
         remaining_elements -= l;
         list_index += 1;
@@ -397,88 +413,59 @@ fn flow_alloc(n: usize, m: usize, max_len: u64) -> Vec<usize> {
     // ones ending at the sink to 'encode' overflowing and underflowing nodes.
 
     let mut additional_label = 2 * list_index;
+    let bucket_capacity: u64 = params.bucket_capacity as u64;
 
-    for v in 0..m {
+    for v in 0..params.m {
         let out_count = graph.out_edge_capacity(v);
 
-        if out_count > max_len {
+        if out_count > bucket_capacity {
             // this is an overflowing vertex
             // add capacity from the source
-            graph.add_edge(additional_label, m, v, out_count - max_len);
+            graph.add_edge(additional_label, params.m, v, out_count - bucket_capacity);
             additional_label += 1;
-        } else if out_count < max_len {
+        } else if out_count < bucket_capacity {
             // this is a vertex with remaining space
             // add capacity to the sink
-            graph.add_edge(additional_label, v, m + 1, max_len - out_count);
+            graph.add_edge(
+                additional_label,
+                v,
+                params.m + 1,
+                bucket_capacity - out_count,
+            );
             additional_label += 1;
         }
     }
 
     // It is time to max flow!
-    let ff = graph.compute_max_flow(m, m + 1, TraversalAlgorithm::DepthFirstSearch);
+    let ff = graph.compute_max_flow(params.m, params.m + 1, TraversalAlgorithm::DepthFirstSearch);
 
     // and now, look at the results.
-    (0..m).map(|v| ff.out_edge_capacity(v) as usize).collect()
+    (0..params.m)
+        .map(|v| ff.out_edge_capacity(v) as usize)
+        .collect()
 }
 
-pub fn experiment_progress<F>(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    overflow_max: usize,
-    progress_callback: F,
-) -> ExperimentResult
-where
-    F: FnMut(usize, usize),
-{
-    let rand_alloc = flow_alloc(n, m, max_len as u64);
+pub fn run_experiment(params: MaxFlowAllocExperimentParams) -> MaxFlowExperimentResult {
+    let rand_alloc = flow_alloc(params);
     let size = rand_alloc.iter().sum();
-    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
+    let max_load = rand_alloc.iter().fold(0, |max, x| max.max(*x));
     let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
-    let overflows = (0..=overflow_max)
-        .map(|of| compute_overflow_stat(load_modes.iter(), of))
-        .collect();
+    let stash_size = compute_overflow_stat(load_modes.iter(), params.bucket_capacity);
 
-    ExperimentResult {
+    MaxFlowExperimentResult {
         size,
         max_load,
         load_modes,
-        overflows,
-    }
-}
-
-pub fn experiment(
-    n: usize,
-    m: usize,
-    max_len: usize,
-    overflow_max: usize,
-    show_progress: bool,
-) -> ExperimentResult {
-    let rand_alloc = flow_alloc(n, m, max_len as u64);
-    let size = rand_alloc.iter().sum();
-    let max_load = rand_alloc.iter().fold(0, |m, x| m.max(*x));
-    let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
-    let overflows = (0..=overflow_max)
-        .map(|of| compute_overflow_stat(load_modes.iter(), of))
-        .collect();
-
-    ExperimentResult {
-        size,
-        max_load,
-        load_modes,
-        overflows,
+        stash_size,
     }
 }
 
 pub fn iterated_experiment<F>(
+    params: MaxFlowAllocExperimentParams,
     iterations: usize,
-    n: usize,
-    m: usize,
-    max_len: usize,
-    overflow_max: usize,
     show_progress: bool,
     iteration_progress_callback: F,
-) -> Vec<ExperimentResult>
+) -> Vec<MaxFlowExperimentResult>
 where
     F: Fn(usize) + Send + Sync,
 {
@@ -487,19 +474,13 @@ where
     // iterations, n, m, max_len
     // );
 
-    let elements_pb = ProgressBar::new((iterations * n) as u64);
+    let elements_pb = ProgressBar::new((iterations * params.n) as u64);
     if show_progress {
         elements_pb.set_style(ProgressStyle::default_bar()
         .template("[{elapsed_precise}] {msg} [{bar:40.cyan/blue}] ({pos}/{len} elts - {percent}%) | ETA: {eta_precise}")
         .progress_chars("##-"));
         elements_pb.set_draw_delta(1_000_000);
     }
-
-    let progress_callback = |_, l: usize| {
-        if show_progress {
-            elements_pb.inc(l as u64);
-        }
-    };
 
     let mut iter_completed = AtomicUsize::new(0);
 
@@ -512,11 +493,14 @@ where
         ));
     }
 
-    let results: Vec<ExperimentResult> = (0..iterations)
+    let results: Vec<MaxFlowExperimentResult> = (0..iterations)
         .into_par_iter()
         .map(|_| {
-            let r = experiment_progress(n, m, max_len, overflow_max, progress_callback);
-            iteration_progress_callback(n);
+            let r: MaxFlowExperimentResult = run_experiment(params);
+            if show_progress {
+                elements_pb.inc(params.n as u64);
+            }
+            iteration_progress_callback(params.n);
 
             let previous_count = iter_completed.fetch_add(1, Ordering::SeqCst);
             if show_progress {
