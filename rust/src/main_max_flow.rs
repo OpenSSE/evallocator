@@ -51,8 +51,9 @@ pub struct MaxFlowAllocStats {
     pub parameters: InteratedMaxFlowAllocExperimentParams,
     pub size: crate::utils::Stats,
     pub load: crate::utils::Stats,
-    pub load_modes: Vec<crate::utils::ModeStats>,
     pub stash_size: crate::utils::Stats,
+    pub load_modes: Vec<crate::utils::ModeStats>,
+    pub stash_modes: Vec<usize>,
 }
 
 fn read_config_file<P: AsRef<Path>>(
@@ -124,15 +125,17 @@ fn run_experiments_stats(
         })
         .map(|(p, results)| {
             let load_stat = compute_stats(results.iter().map(|x| x.max_load));
+            let stash_stat = compute_stats(results.iter().map(|x| x.stash_size));
             MaxFlowAllocStats {
                 parameters: *p,
                 size: compute_stats(results.iter().map(|x| x.size)),
                 load: load_stat,
+                stash_size: stash_stat,
                 load_modes: compute_modes_stat(
                     results.iter().map(|x| &x.load_modes),
                     load_stat.max,
                 ),
-                stash_size: compute_stats(results.iter().map(|x| x.stash_size)),
+                stash_modes: compute_modes(results.iter().map(|x| x.stash_size), stash_stat.max),
             }
         })
         .collect();
