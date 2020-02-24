@@ -484,7 +484,7 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
 
     assert!(graph.check_graph_correctness());
 
-    let mut base_graph = graph.clone();
+    // let base_graph = graph.clone();
     // println!("All edges:\n {:?} \n\n\n", base_graph.edges);
 
     // OK, now we have to add the edges originating from the source and the
@@ -514,13 +514,13 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
         }
     }
     assert!(graph.check_graph_correctness());
-    let n_tot_edges = graph.edges.len();
 
     // It is time to max flow!
+    // We could do
     // let ff = graph.compute_max_flow(params.m, params.m + 1, TraversalAlgorithm::DepthFirstSearch);
-    // assert!(ff.check_graph_correctness());
-
-    // try an other algorithm
+    // and then flip the edges in base_graph that carry flow (in ff)
+    // Yet, this is exactly reconstructing the last residual graph of the
+    // Ford-Fulkerson algorithm. So, we only compute this graph for now
     let rff = graph.compute_residual_max_flow(
         params.m,
         params.m + 1,
@@ -528,74 +528,10 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
     );
     assert!(rff.check_graph_correctness());
 
-    // we need to flip all the edges carrying flow in the max flow graph
-
-    // for i in 0..base_graph.edges.len() {
-    //     let e = &ff.edges[i];
-    //     // println!("Orig: {:?}", &base_graph.edges[i]);
-    //     // println!("FF: {:?}", e);
-    //     // println!("Residual: {:?}", &rff.edges[i]);
-    //     // println!("ResidualInv: {:?}", &rff.edges[i + n_tot_edges]);
-    //     if e.capacity > 0 {
-    //         // add an inverted edge with the corresponding capacity
-    //         base_graph.add_edge(e.label, e.end, e.start, e.capacity as u64);
-    //         // remove the capacity to the corresponding edge
-    //         base_graph.edges[i].capacity -= e.capacity;
-
-    //         // println!("Final: {:?}", &base_graph.edges[i]);
-    //         // println!(
-    //         // "FinalIn: {:?}",
-    //         // &base_graph.edges[&base_graph.edges.len() - 1]
-    //         // );
-    //     }
-
-    //     // println!();
-    // }
-
-    // for v in 0..params.m {
-    //     println!(
-    //         "Base graph {:?}",
-    //         base_graph.vertices[v]
-    //             .out_edges
-    //             .iter()
-    //             .map(|&e| &base_graph.edges[e])
-    //             .collect::<Vec<&Edge>>()
-    //     );
-    //     println!(
-    //         "Rff graph {:?}",
-    //         rff.vertices[v]
-    //             .out_edges
-    //             .iter()
-    //             .map(|&e| &rff.edges[e])
-    //             .collect::<Vec<&Edge>>()
-    //     );
-    // }
-
-    // println!("Compute loads {}\n\n\n", params.m);
-    // and now, look at the results.
-    // let res = (0..params.m)
-    //     .map(|v| {
-    //         println!("Base graph out");
-    //         let cap = base_graph.out_edge_capacity_debug(v) as usize;
-    //         println!("rff graph out");
-    //         let cap2 = rff.vertices[v]
-    //             .out_edges
-    //             .iter()
-    //             .filter(
-    //                 |&&e| rff.edges[e].end < params.m, // this predicates returns true iff rff.edges[e] is an edge whose end is in the graph
-    //             )
-    //             .map(|&e| {
-    //                 println!("{:?}", rff.edges[e]);
-    //                 rff.edges[e].capacity
-    //             })
-    //             .sum::<i64>() as usize;
-    //         assert_eq!(cap, cap2);
-    //         cap
-    //     })
-    //     .collect();
-
-    // remove the sink and source
-    let res2: Vec<usize> = (0..params.m)
+    // Now, we can easily compute the load of each bucket.
+    // We must be careful to remove the edges whose end are the sink or the
+    // source from the load computation
+    let res: Vec<usize> = (0..params.m)
         .map(|v| {
             rff.vertices[v]
                 .out_edges
@@ -608,8 +544,7 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
         })
         .collect();
 
-    // assert_eq!(res, res2);
-    res2
+    res
 }
 
 pub fn run_experiment(params: MaxFlowAllocExperimentParams) -> MaxFlowExperimentResult {
