@@ -7,6 +7,8 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use std::slice::Iter;
+
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +31,8 @@ struct Vertex {
 
 #[derive(Debug, Clone)]
 struct Graph {
-    vertices: Vec<Vertex>,
-    edges: Vec<Edge>,
+    pub vertices: Vec<Vertex>,
+    pub edges: Vec<Edge>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -163,6 +165,67 @@ impl Graph {
             .sum::<i64>() as u64
     }
 
+    fn out_edge_capacity_debug(&self, vertex: usize) -> u64 {
+        assert!(vertex < self.vertex_count());
+
+        self.vertices[vertex]
+            .out_edges
+            .iter()
+            .map(|&e| {
+                println!("{:?}", self.edges[e]);
+                self.edges[e].capacity
+            })
+            .sum::<i64>() as u64
+    }
+
+    fn edge_iterator(&self) -> Iter<Edge> {
+        self.edges.iter()
+    }
+
+    fn check_graph_correctness(&self) -> bool {
+        let mut res = true;
+        for v in 0..self.vertices.len() {
+            for e in &self.vertices[v].in_edges {
+                if v != self.edges[*e].end {
+                    println!("Invalid end for in edge");
+                    res = false;
+                }
+            }
+            for e in &self.vertices[v].out_edges {
+                if v != self.edges[*e].start {
+                    println!("Invalid start for out edge");
+                    res = false;
+                }
+            }
+        }
+
+        for e in 0..self.edges.len() {
+            let v_start = self.edges[e].start;
+            let v_end = self.edges[e].end;
+            assert_eq!(
+                self.vertices[v_start]
+                    .out_edges
+                    .iter()
+                    .filter(|&&o_e| o_e == e)
+                    .collect::<Vec<&usize>>()
+                    .len(),
+                1,
+                "Invalid number of matching out edges"
+            );
+            assert_eq!(
+                self.vertices[v_end]
+                    .in_edges
+                    .iter()
+                    .filter(|&&o_e| o_e == e)
+                    .collect::<Vec<&usize>>()
+                    .len(),
+                1,
+                "Invalid number of matching in edges"
+            );
+        }
+        res
+    }
+
     // Takes a source and a sink and finds a path from the source to the sink.
     // The path is (optionally) returned as the list of edges leading from the
     // source to the sink, together with the capacity of the path
@@ -272,7 +335,7 @@ impl Graph {
         self.find_path(source, sink, TraversalAlgorithm::DepthFirstSearch)
     }
 
-    fn compute_max_flow(
+    fn compute_residual_max_flow(
         &self,
         source: usize,
         sink: usize,
@@ -280,7 +343,7 @@ impl Graph {
     ) -> Graph {
         let mut res_graph = Graph::new_residual_graph(self);
 
-        let mut max_flow = 0;
+        // let mut max_flow = 0;
         let n_original_edges = self.edges.len();
         loop {
             match res_graph.find_path(source, sink, traversal_alg) {
@@ -297,15 +360,25 @@ impl Graph {
                         };
                         res_graph.edges[rev_edge].capacity += path_flow;
                     }
-                    max_flow += path_flow;
+                    // max_flow += path_flow;
                 }
             }
         }
 
         // println!("Max flow {}", max_flow);
 
-        res_graph.transform_residual_to_flow();
         res_graph
+    }
+
+    fn compute_max_flow(
+        &self,
+        source: usize,
+        sink: usize,
+        traversal_alg: TraversalAlgorithm,
+    ) -> Graph {
+        let mut g = self.compute_residual_max_flow(source, sink, traversal_alg);
+        g.transform_residual_to_flow();
+        g
     }
 
     fn transform_residual_to_flow(&mut self) {
@@ -409,6 +482,11 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
         list_index += 1;
     }
 
+    assert!(graph.check_graph_correctness());
+
+    let mut base_graph = graph.clone();
+    // println!("All edges:\n {:?} \n\n\n", base_graph.edges);
+
     // OK, now we have to add the edges originating from the source and the
     // ones ending at the sink to 'encode' overflowing and underflowing nodes.
 
@@ -435,14 +513,103 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
             additional_label += 1;
         }
     }
+    assert!(graph.check_graph_correctness());
+    let n_tot_edges = graph.edges.len();
 
     // It is time to max flow!
-    let ff = graph.compute_max_flow(params.m, params.m + 1, TraversalAlgorithm::DepthFirstSearch);
+    // let ff = graph.compute_max_flow(params.m, params.m + 1, TraversalAlgorithm::DepthFirstSearch);
+    // assert!(ff.check_graph_correctness());
 
+    // try an other algorithm
+    let rff = graph.compute_residual_max_flow(
+        params.m,
+        params.m + 1,
+        TraversalAlgorithm::DepthFirstSearch,
+    );
+    assert!(rff.check_graph_correctness());
+
+    // we need to flip all the edges carrying flow in the max flow graph
+
+    // for i in 0..base_graph.edges.len() {
+    //     let e = &ff.edges[i];
+    //     // println!("Orig: {:?}", &base_graph.edges[i]);
+    //     // println!("FF: {:?}", e);
+    //     // println!("Residual: {:?}", &rff.edges[i]);
+    //     // println!("ResidualInv: {:?}", &rff.edges[i + n_tot_edges]);
+    //     if e.capacity > 0 {
+    //         // add an inverted edge with the corresponding capacity
+    //         base_graph.add_edge(e.label, e.end, e.start, e.capacity as u64);
+    //         // remove the capacity to the corresponding edge
+    //         base_graph.edges[i].capacity -= e.capacity;
+
+    //         // println!("Final: {:?}", &base_graph.edges[i]);
+    //         // println!(
+    //         // "FinalIn: {:?}",
+    //         // &base_graph.edges[&base_graph.edges.len() - 1]
+    //         // );
+    //     }
+
+    //     // println!();
+    // }
+
+    // for v in 0..params.m {
+    //     println!(
+    //         "Base graph {:?}",
+    //         base_graph.vertices[v]
+    //             .out_edges
+    //             .iter()
+    //             .map(|&e| &base_graph.edges[e])
+    //             .collect::<Vec<&Edge>>()
+    //     );
+    //     println!(
+    //         "Rff graph {:?}",
+    //         rff.vertices[v]
+    //             .out_edges
+    //             .iter()
+    //             .map(|&e| &rff.edges[e])
+    //             .collect::<Vec<&Edge>>()
+    //     );
+    // }
+
+    // println!("Compute loads {}\n\n\n", params.m);
     // and now, look at the results.
-    (0..params.m)
-        .map(|v| ff.out_edge_capacity(v) as usize)
-        .collect()
+    // let res = (0..params.m)
+    //     .map(|v| {
+    //         println!("Base graph out");
+    //         let cap = base_graph.out_edge_capacity_debug(v) as usize;
+    //         println!("rff graph out");
+    //         let cap2 = rff.vertices[v]
+    //             .out_edges
+    //             .iter()
+    //             .filter(
+    //                 |&&e| rff.edges[e].end < params.m, // this predicates returns true iff rff.edges[e] is an edge whose end is in the graph
+    //             )
+    //             .map(|&e| {
+    //                 println!("{:?}", rff.edges[e]);
+    //                 rff.edges[e].capacity
+    //             })
+    //             .sum::<i64>() as usize;
+    //         assert_eq!(cap, cap2);
+    //         cap
+    //     })
+    //     .collect();
+
+    // remove the sink and source
+    let res2: Vec<usize> = (0..params.m)
+        .map(|v| {
+            rff.vertices[v]
+                .out_edges
+                .iter()
+                .filter(
+                    |&&e| rff.edges[e].end < params.m, // this predicates returns true iff rff.edges[e] is an edge whose end is in the graph
+                )
+                .map(|&e| rff.edges[e].capacity)
+                .sum::<i64>() as usize
+        })
+        .collect();
+
+    // assert_eq!(res, res2);
+    res2
 }
 
 pub fn run_experiment(params: MaxFlowAllocExperimentParams) -> MaxFlowExperimentResult {

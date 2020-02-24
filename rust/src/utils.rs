@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::Serialize;
 
 pub fn msb(x: u64) -> u8 {

@@ -1,7 +1,9 @@
+#![allow(dead_code)]
+
 mod utils;
 pub use crate::utils::*;
 
-use gnuplot::*;
+// use gnuplot::*;
 
 extern crate csv;
 extern crate serde_json;
