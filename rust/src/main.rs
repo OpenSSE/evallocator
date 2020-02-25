@@ -19,6 +19,7 @@ use gnuplot::*;
 extern crate csv;
 extern crate serde_json;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter};
@@ -164,7 +165,7 @@ fn run_experiments_stats(inputs: &[AllocParams]) -> Vec<AllocStats> {
                 load: load_stat,
                 load_modes: compute_modes_stat(
                     results.iter().map(|x| &x.load_modes),
-                    load_stat.max,
+                    load_stat.max.try_into().unwrap(),
                 ),
                 overflows: compute_modes_stat(results.iter().map(|x| &x.overflows), p.overflow_max),
             }
@@ -189,8 +190,14 @@ fn plot_load_stats(stats: &[AllocStats]) {
     let x: Vec<usize> = stats.iter().map(|s| s.parameters.n).collect();
     let y: Vec<f64> = stats.iter().map(|s| s.load.mean).collect();
     let err: Vec<f64> = stats.iter().map(|s| s.load.variance).collect();
-    let min_loads: Vec<usize> = stats.iter().map(|s| s.load.min).collect();
-    let max_loads: Vec<usize> = stats.iter().map(|s| s.load.max).collect();
+    let min_loads: Vec<u64> = stats
+        .iter()
+        .map(|s| s.load.min.try_into().unwrap())
+        .collect();
+    let max_loads: Vec<u64> = stats
+        .iter()
+        .map(|s| s.load.max.try_into().unwrap())
+        .collect();
     let expected_max_load: Vec<f64> = stats
         .iter()
         .map(|s| 3.0 * (s.parameters.n as f64) / (s.parameters.m as f64))

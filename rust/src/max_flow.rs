@@ -450,15 +450,23 @@ pub struct MaxFlowAllocExperimentParams {
     pub bucket_capacity: usize,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Default)]
+pub struct FlowAllocTimings {
+    pub generation: u128,
+    pub sink_source: u128,
+    pub max_flow: u128,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct MaxFlowExperimentResult {
     pub size: usize,
     pub max_load: usize,
     pub load_modes: Vec<usize>,
     pub stash_size: usize,
+    pub timings: FlowAllocTimings,
 }
 
-fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
+fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
     let mut remaining_elements = params.n;
 
     let mut rng = thread_rng();
@@ -482,15 +490,26 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
         list_index += 1;
     }
 
-    assert!(graph.check_graph_correctness());
+    (graph, list_index)
+}
+
+fn flow_alloc(
+    params: MaxFlowAllocExperimentParams,
+    timings: Option<&mut FlowAllocTimings>,
+) -> Vec<usize> {
+    let mut times: FlowAllocTimings = Default::default();
+    let start_gen = std::time::Instant::now();
+    let (mut graph, list_count) = generate_alloc_graph(params);
+    // assert!(graph.check_graph_correctness());
 
     // let base_graph = graph.clone();
     // println!("All edges:\n {:?} \n\n\n", base_graph.edges);
 
+    let start_sink_source = std::time::Instant::now();
     // OK, now we have to add the edges originating from the source and the
     // ones ending at the sink to 'encode' overflowing and underflowing nodes.
 
-    let mut additional_label = 2 * list_index;
+    let mut additional_label = 2 * list_count;
     let bucket_capacity: u64 = params.bucket_capacity as u64;
 
     for v in 0..params.m {
@@ -513,7 +532,7 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
             additional_label += 1;
         }
     }
-    assert!(graph.check_graph_correctness());
+    // assert!(graph.check_graph_correctness());
 
     // It is time to max flow!
     // We could do
@@ -521,12 +540,24 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
     // and then flip the edges in base_graph that carry flow (in ff)
     // Yet, this is exactly reconstructing the last residual graph of the
     // Ford-Fulkerson algorithm. So, we only compute this graph for now
+    let start_ff = std::time::Instant::now();
+
     let rff = graph.compute_residual_max_flow(
         params.m,
         params.m + 1,
         TraversalAlgorithm::DepthFirstSearch,
     );
-    assert!(rff.check_graph_correctness());
+
+    let end_ff = std::time::Instant::now();
+
+    times.generation = start_sink_source.duration_since(start_gen).as_nanos();
+    times.sink_source = start_ff.duration_since(start_sink_source).as_nanos();
+    times.max_flow = end_ff.duration_since(start_ff).as_nanos();
+    // assert!(rff.check_graph_correctness());
+
+    if let Some(timings) = timings {
+        *timings = times;
+    }
 
     // Now, we can easily compute the load of each bucket.
     // We must be careful to remove the edges whose end are the sink or the
@@ -548,7 +579,8 @@ fn flow_alloc(params: MaxFlowAllocExperimentParams) -> Vec<usize> {
 }
 
 pub fn run_experiment(params: MaxFlowAllocExperimentParams) -> MaxFlowExperimentResult {
-    let rand_alloc = flow_alloc(params);
+    let mut timings: FlowAllocTimings = Default::default();
+    let rand_alloc = flow_alloc(params, Some(&mut timings));
     let size = rand_alloc.iter().sum();
     let max_load = rand_alloc.iter().fold(0, |max, x| max.max(*x));
     let load_modes = compute_modes(rand_alloc.into_iter(), max_load);
@@ -559,6 +591,7 @@ pub fn run_experiment(params: MaxFlowAllocExperimentParams) -> MaxFlowExperiment
         max_load,
         load_modes,
         stash_size,
+        timings,
     }
 }
 

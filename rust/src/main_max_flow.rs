@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use rayon::prelude::*;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter};
@@ -49,6 +50,12 @@ pub struct InteratedMaxFlowAllocExperimentParams {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct MaxFlowAllocTimingStats {
+    pub generation: crate::utils::Stats,
+    pub sink_source: crate::utils::Stats,
+    pub max_flow: crate::utils::Stats,
+}
+#[derive(Debug, Clone, Serialize)]
 pub struct MaxFlowAllocStats {
     pub parameters: InteratedMaxFlowAllocExperimentParams,
     pub size: crate::utils::Stats,
@@ -56,6 +63,7 @@ pub struct MaxFlowAllocStats {
     pub stash_size: crate::utils::Stats,
     pub load_modes: Vec<crate::utils::ModeStats>,
     pub stash_modes: Vec<usize>,
+    pub timings: MaxFlowAllocTimingStats,
 }
 
 fn read_config_file<P: AsRef<Path>>(
@@ -135,9 +143,17 @@ fn run_experiments_stats(
                 stash_size: stash_stat,
                 load_modes: compute_modes_stat(
                     results.iter().map(|x| &x.load_modes),
-                    load_stat.max,
+                    load_stat.max.try_into().unwrap(),
                 ),
-                stash_modes: compute_modes(results.iter().map(|x| x.stash_size), stash_stat.max),
+                stash_modes: compute_modes(
+                    results.iter().map(|x| x.stash_size),
+                    stash_stat.max.try_into().unwrap(),
+                ),
+                timings: MaxFlowAllocTimingStats {
+                    generation: compute_stats_u128(results.iter().map(|x| x.timings.generation)),
+                    sink_source: compute_stats_u128(results.iter().map(|x| x.timings.sink_source)),
+                    max_flow: compute_stats_u128(results.iter().map(|x| x.timings.max_flow)),
+                },
             }
         })
         .collect();

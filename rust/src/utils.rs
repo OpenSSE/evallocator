@@ -14,28 +14,28 @@ pub fn msb(x: u64) -> u8 {
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct Stats {
     pub count: usize,
-    pub max: usize,
-    pub min: usize,
+    pub max: u128,
+    pub min: u128,
     pub mean: f64,
     pub variance: f64,
 }
 
-pub fn compute_stats<I>(iter: I) -> Stats
+pub fn compute_stats_u128<I>(iter: I) -> Stats
 where
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = u128>,
 {
     let mut sum: u128 = 0;
     let mut sum_square: u128 = 0;
     let mut count: usize = 0;
-    let mut min = usize::max_value();
-    let mut max = 0usize;
+    let mut min = u128::max_value();
+    let mut max = 0u128;
 
     for v in iter {
         sum += v as u128;
         sum_square += (v as u128) * (v as u128);
         count += 1;
-        min = min.min(v);
-        max = max.max(v);
+        min = min.min(v as u128);
+        max = max.max(v as u128);
     }
 
     let mean = if count > 0 {
@@ -57,6 +57,12 @@ where
         mean,
         variance,
     }
+}
+pub fn compute_stats<I>(iter: I) -> Stats
+where
+    I: Iterator<Item = usize>,
+{
+    compute_stats_u128(iter.map(|val| val as u128))
 }
 
 pub fn compute_modes<I>(iter: I, max: usize) -> Vec<usize>
