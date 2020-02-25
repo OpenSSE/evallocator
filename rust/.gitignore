@@ -7,3 +7,4 @@
 
 # Do not ignore the example configuration files
 !example_config.json
+!max_flow_config.json
