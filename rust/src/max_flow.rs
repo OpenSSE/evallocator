@@ -443,11 +443,18 @@ fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum GenerationType {
+    RandomGeneration,
+    WorstCaseGeneration,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MaxFlowAllocExperimentParams {
     pub n: usize,
     pub m: usize,
     pub list_max_len: usize,
     pub bucket_capacity: usize,
+    pub generation_type: GenerationType,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Default)]
@@ -478,7 +485,12 @@ fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
     let mut list_index: u64 = 0;
 
     while remaining_elements != 0 {
-        let l: usize = rng.gen_range(0, params.list_max_len.min(remaining_elements)) + 1;
+        let l: usize = match params.generation_type {
+            GenerationType::RandomGeneration => {
+                rng.gen_range(0, params.list_max_len.min(remaining_elements)) + 1
+            }
+            GenerationType::WorstCaseGeneration => params.list_max_len.min(remaining_elements),
+        };
         let h1: usize = rng.gen_range(0, params.m);
         let h2: usize = rng.gen_range(0, params.m);
 
