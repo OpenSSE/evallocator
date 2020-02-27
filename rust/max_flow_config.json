@@ -5,7 +5,7 @@
       "m": 512,
       "list_max_len": 32,
       "bucket_capacity": 32,
-      "generation_type": "WorstCaseGeneration"
+      "generation_method": "WorstCaseGeneration"
     },
     "iterations": 100
   },
@@ -15,7 +15,7 @@
       "m": 128,
       "list_max_len": 32,
       "bucket_capacity": 32,
-      "generation_type": "RandomGeneration"
+      "generation_method": "RandomGeneration"
     },
     "iterations": 100
   }
