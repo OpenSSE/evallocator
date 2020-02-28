@@ -13,7 +13,7 @@ import json
 import math
 
 
-def plot_file(filename, label):
+def plot_file(filename, label, normalize=False, logx=False, logy=False):
     with open(filename) as source:
         data = json.load(source)
         x = []
@@ -34,12 +34,25 @@ def plot_file(filename, label):
 
             x.append(l)
 
-            y_max.append(float(experiment["stash_size"]["max"]))
-            y_avg.append(float(experiment["stash_size"]["mean"]))
+            stash_max = float(experiment["stash_size"]["max"])
+            stash_avg = float(experiment["stash_size"]["mean"])
+
+            if normalize:
+                stash_avg /= n
+                stash_max /= n
+
+            y_max.append(stash_max)
+            y_avg.append(stash_avg)
 
         plt.plot(x, y_max, label="Max stash size")
         plt.plot(x, y_avg, label="Average stash size")
-        plt.legend(loc='upper left')
+        plt.legend(loc='upper right')
+
+        if logx:
+            plt.semilogx()
+        if logy:
+            plt.semilogy()
+
         plt.show()
 
 
@@ -48,11 +61,13 @@ parser.add_argument('filename', metavar='path',
                     help='Path to a JSON file')
 parser.add_argument('--label', '-l', default='n',
                     help='Define the used label')
+parser.add_argument('--normalize', '-n', action='store_true')
+parser.add_argument('--logx', action='store_true')
+parser.add_argument('--logy', action='store_true')
+
 
 args = parser.parse_args()
 # print(args)
 
-# filename = "../experiments/var_n_m/large_m_res.json"
-# filename = "../experiments/var_max_len/one_choice_res.json"
-
-plot_file(args.filename, args.label)
+plot_file(args.filename, args.label, normalize=args.normalize,
+          logx=args.logx, logy=args.logy)
