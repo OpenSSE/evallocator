@@ -454,6 +454,12 @@ pub enum EdgeOrientation {
     LeastChargedOrientation,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum LocationGeneration {
+    FullyRandom,
+    HalfRandom,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MaxFlowAllocExperimentParams {
     pub n: usize,
@@ -462,6 +468,7 @@ pub struct MaxFlowAllocExperimentParams {
     pub bucket_capacity: usize,
     pub generation_method: ListGenerationMethod,
     pub edge_orientation: EdgeOrientation,
+    pub location_generation: LocationGeneration,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Default)]
@@ -480,6 +487,17 @@ pub struct MaxFlowExperimentResult {
     pub timings: FlowAllocTimings,
 }
 
+fn generate_location<T>(rng: &mut T, m: usize, loc_gen: LocationGeneration) -> (usize, usize)
+where
+    T: rand::Rng,
+{
+    match loc_gen {
+        LocationGeneration::FullyRandom => (rng.gen_range(0, m), rng.gen_range(0, m)),
+        LocationGeneration::HalfRandom => {
+            (rng.gen_range(0, m / 2), m / 2 + rng.gen_range(0, m - m / 2))
+        }
+    }
+}
 fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
     let mut remaining_elements = params.n;
 
@@ -500,8 +518,8 @@ fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
                 params.list_max_len.min(remaining_elements)
             }
         };
-        let h1: usize = rng.gen_range(0, params.m);
-        let h2: usize = rng.gen_range(0, params.m);
+
+        let (h1, h2) = generate_location(&mut rng, params.m, params.location_generation);
 
         let mut start = h1;
         let mut end = h2;
@@ -685,52 +703,3 @@ where
 
     results
 }
-
-// fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     let allocation = flow_alloc(1000, 1000, 10);
-
-//     Ok(())
-// }
-// fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     println!("Max Flow");
-
-//     // let mut g = Graph::new();
-
-//     // let a = g.add_vertex(31);
-//     // let b = g.add_vertex(32);
-//     // let c = g.add_vertex(33);
-//     // let d = g.add_vertex(34);
-//     // let e = g.add_vertex(35);
-//     // let f = g.add_vertex(36);
-
-//     // g.add_edge(40, a, b, 10);
-//     // g.add_edge(41, b, c, 5);
-//     // g.add_edge(43, b, d, 7);
-//     // g.add_edge(44, c, e, 7);
-//     // g.add_edge(45, e, f, 7);
-//     // g.add_edge(46, d, f, 7);
-
-//     let n_edges = 1 << 20 as usize;
-//     let n_vertices = 1 << 10 as usize;
-
-//     println!(
-//         "Generate graph with {} vertices and {} edges of capacity 1",
-//         n_edges, n_vertices
-//     );
-
-//     let g = generate_random_graph(n_vertices, n_edges);
-//     // println!("Graph: {:?}", g);
-//     println!("Graph generated!");
-
-//     // println!("Path a->c : {:?}", g.find_path(a, c));
-//     // println!("Path a->d : {:?}", g.find_path(a, d));
-//     // println!("Path a->f : {:?}", g.find_path_bfs(a, f));
-//     // println!("Path a->f : {:?}", g.find_path_dfs(a, f));
-
-//     println!("Start computing max flow...");
-//     let ff = g.compute_max_flow(0, n_vertices - 1, TraversalAlgorithm::DepthFirstSearch);
-//     println!("Max flow graph computed...");
-//     // println!("\n\nFF Graph: {:?}", ff);
-
-//     Ok(())
-// }
