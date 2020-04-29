@@ -1,6 +1,10 @@
+#! python3
+
+
 import json
 import math
 import copy
+import argparse
 
 m = 2**10
 p = 512
@@ -10,6 +14,13 @@ epsilons = [-0.35, - 0.3, - 0.25, - 0.2, - 0.15, - 0.1, - 0.05, 0, 0.02, 0.04, 0
             0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.4, 0.42, 0.44, 0.46, 0.48, 0.5]
 
 n_values = [math.ceil(m * p / (2 + e)) for e in epsilons]
+
+print("Values for epsilon:")
+print(epsilons)
+
+print("Values for n:")
+print(n_values)
+
 
 base_params_dict = dict()
 base_params_dict["m"] = m
@@ -30,5 +41,13 @@ for n in n_values:
     exp_dict["exp_params"]["n"] = n
     data.append(exp_dict)
 
-with open('config.json', 'w', encoding='utf-8') as f:
+
+parser = argparse.ArgumentParser(
+    description='Maxflow configuration generator (variable epsilon)')
+parser.add_argument('filename', metavar='path',
+                    help='Path of the output JSON file')
+
+args = parser.parse_args()
+
+with open(args.filename, 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, indent=4)
