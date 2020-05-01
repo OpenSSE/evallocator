@@ -34,8 +34,13 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
             else:
                 l = float(experiment["parameters"]["exp_params"][label])
 
-            plt.plot([i/iterations for i in experiment["stash_modes"]
-                      [:: p]], label="n=%d" % (n))
+            norm_factor = 1
+
+            if (normalize):
+                norm_factor = n
+
+            plt.plot([i/(norm_factor*iterations) for i in experiment["stash_modes"]
+                      [p:: p]], label="n=%d" % (n))
             # x.append(l)
 
             # stash_max = float(experiment["stash_size"]["max"])
