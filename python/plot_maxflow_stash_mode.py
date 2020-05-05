@@ -11,14 +11,19 @@ import argparse
 import matplotlib.pyplot as plt
 import json
 import math
+import csv
+import itertools
 
 
-def plot_file(filename, label, normalize=False, logx=False, logy=False):
+def plot_file(filename, label, normalize=False, plot=True, logx=False, logy=False):
     with open(filename) as source:
         data = json.load(source)
         x = []
         y_max = []
         y_avg = []
+
+        rows = []
+
         for experiment in data:  # iterate over the experiments
             n = float(experiment["parameters"]["exp_params"]["n"])
             m = float(experiment["parameters"]["exp_params"]["m"])
@@ -39,8 +44,13 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
             if (normalize):
                 norm_factor = n
 
-            plt.plot([i/(norm_factor*iterations) for i in experiment["stash_modes"]
-                      [p:: p]], label="n=%d" % (n))
+            probs = [i/(norm_factor*iterations)
+                     for i in experiment["stash_modes"][0:: p]]
+            plt.plot(probs, label="n=%d" % (n))
+
+            probs.insert(0, int(l))
+
+            rows.append(probs)
             # x.append(l)
 
             # stash_max = float(experiment["stash_size"]["max"])
@@ -53,16 +63,19 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
             # y_max.append(stash_max)
             # y_avg.append(stash_avg)
 
-        # plt.plot(x, y_max, label="Max stash size")
-        # plt.plot(x, y_avg, label="Average stash size")
-        plt.legend(loc='upper right')
+        if plot:
+            # plt.plot(x, y_max, label="Max stash size")
+            # plt.plot(x, y_avg, label="Average stash size")
+            plt.legend(loc='upper right')
 
-        if logx:
-            plt.semilogx()
-        if logy:
-            plt.semilogy()
+            if logx:
+                plt.semilogx()
+            if logy:
+                plt.semilogy()
 
-        plt.show()
+            plt.show()
+
+        return rows
 
 
 parser = argparse.ArgumentParser(description='Plot allocation overflows.')
@@ -73,10 +86,20 @@ parser.add_argument('--label', '-l', default='n',
 parser.add_argument('--normalize', '-n', action='store_true')
 parser.add_argument('--logx', action='store_true')
 parser.add_argument('--logy', action='store_true')
-
+parser.add_argument('--no-plot', action='store_true')
+parser.add_argument('--out', '-o', metavar='path', default=None,
+                    help='Output csv data file', required=False)
 
 args = parser.parse_args()
 # print(args)
 
-plot_file(args.filename, args.label, normalize=args.normalize,
-          logx=args.logx, logy=args.logy)
+rows = plot_file(args.filename, args.label, normalize=args.normalize,
+                 logx=args.logx, logy=args.logy,  plot=(not args.no_plot))
+transposed_rows = list(
+    map(list, itertools.zip_longest(*rows, fillvalue=0)))
+
+
+if args.out:
+    with open(args.out, 'w') as out_file:
+        writer = csv.writer(out_file)
+        writer.writerows(transposed_rows)

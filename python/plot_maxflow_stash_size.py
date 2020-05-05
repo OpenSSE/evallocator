@@ -13,6 +13,7 @@ import json
 import math
 from scipy.optimize import curve_fit
 import numpy as np
+import csv
 
 
 def f(x, a):
@@ -23,7 +24,11 @@ def f_norm(x, a):
     return a/(x*np.log2(x))
 
 
-def plot_file(filename, label, normalize=False, logx=False, logy=False):
+def exp_fit(x):
+    return 72684 / (x*np.log2(x))
+
+
+def process(filename, label, normalize=False, plot=True, logx=False, logy=False):
     with open(filename) as source:
         data = json.load(source)
 
@@ -34,6 +39,8 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
         y_std_dev = []
         y_upper_hull = []
         y_lower_hull = []
+
+        rows = []
 
         for experiment in data:  # iterate over the experiments
             n = float(experiment["parameters"]["exp_params"]["n"])
@@ -63,18 +70,17 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
             y_max.append(stash_max)
             y_avg.append(stash_avg)
             y_std_dev.append(stash_avg_std_dev)
-            y_upper_hull.append(stash_avg + confidence_param *
-                                stash_avg_std_dev/math.sqrt(n))
-            y_lower_hull.append(
-                max(0, stash_avg - confidence_param*stash_avg_std_dev/math.sqrt(n)))
 
-        plt.plot(x, y_max, label="Max stash size")
-        plt.plot(x, y_avg, label="Average stash size")
-        # plt.errorbar(x, y_avg, yerr=y_std_dev,
-        #  label="Average stash size")
-        # plt.plot(x, y_upper_hull, label="Average stash size")
-        # plt.plot(x, y_lower_hull, label="Average stash size")
-        # plt.fill_between(x, y_upper_hull, y_lower_hull, alpha=0.2)
+            y_up = stash_avg + confidence_param * \
+                stash_avg_std_dev / math.sqrt(n)
+            y_down = max(0, stash_avg - confidence_param *
+                         stash_avg_std_dev / math.sqrt(n))
+
+            y_upper_hull.append(y_up)
+            y_lower_hull.append(y_down)
+
+            rows.append(
+                [l, stash_avg, stash_avg_std_dev, y_up, y_down, stash_max])
 
         fit_func = f
 
@@ -83,22 +89,36 @@ def plot_file(filename, label, normalize=False, logx=False, logy=False):
 
         popt, pcov = curve_fit(f, x[:-1], y_max[:-1])
 
-        fit_label = 'fit: y=a/log(x), a=%5.3f' % tuple(popt)
+        if plot:
+            plt.plot(x, y_max, label="Max stash size")
+            plt.plot(x, y_avg, label="Average stash size")
+            # plt.errorbar(x, y_avg, yerr=y_std_dev,
+            #  label="Average stash size")
+            # plt.plot(x, y_upper_hull, label="Average stash size")
+            # plt.plot(x, y_lower_hull, label="Average stash size")
+            plt.fill_between(x, y_upper_hull, y_lower_hull, alpha=0.2)
 
-        if (normalize):
-            fit_label = 'fit: y=a/(x log(x)), a=%5.3f' % tuple(popt)
+            fit_label = 'fit: y=a/log(x), a=%5.3f' % tuple(popt)
 
-        # plt.plot(x, f(x, *popt), 'g--',
-            #  label=fit_label)
+            if (normalize):
+                fit_label = 'fit: y=a/(x log(x)), a=%5.3f' % tuple(popt)
 
-        plt.legend(loc='upper right')
+            # plt.plot(x, f(x, *popt), 'g--',
+                #  label=fit_label)
 
-        if logx:
-            plt.semilogx()
-        if logy:
-            plt.semilogy()
+            # plt.plot(x, exp_fit(x), 'r--',
+            #  label="expected")
 
-        plt.show()
+            plt.legend(loc='upper right')
+
+            if logx:
+                plt.semilogx()
+            if logy:
+                plt.semilogy()
+
+            plt.show()
+
+        return rows
 
 
 parser = argparse.ArgumentParser(description='Plot allocation overflows.')
@@ -110,9 +130,19 @@ parser.add_argument('--normalize', '-n', action='store_true')
 parser.add_argument('--logx', action='store_true')
 parser.add_argument('--logy', action='store_true')
 
+parser.add_argument('--no-plot', action='store_true')
+
+
+parser.add_argument('--out', '-o', metavar='path', default=None,
+                    help='Output csv data file', required=False)
 
 args = parser.parse_args()
 # print(args)
 
-plot_file(args.filename, args.label, normalize=args.normalize,
-          logx=args.logx, logy=args.logy)
+rows = process(args.filename, args.label, normalize=args.normalize,
+               logx=args.logx, logy=args.logy, plot=(not args.no_plot))
+
+if args.out:
+    with open(args.out, 'w') as out_file:
+        writer = csv.writer(out_file)
+        writer.writerows(rows)
