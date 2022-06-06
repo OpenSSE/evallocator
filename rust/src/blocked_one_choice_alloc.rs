@@ -35,9 +35,9 @@ where
     let mb = m / block_size;
 
     while remaining_elements != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
-        let meta_bucket: usize = rng.gen_range(0, mb);
-        let b: usize = rng.gen_range(0, block_size);
+        let l: usize = rng.gen_range(0..max_len.min(remaining_elements)) + 1;
+        let meta_bucket: usize = rng.gen_range(0..mb);
+        let b: usize = rng.gen_range(0..block_size);
         let offset = block_size * meta_bucket;
 
         for i in 0..l {

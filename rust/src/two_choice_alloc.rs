@@ -18,7 +18,7 @@ pub fn gen_distrib(n: usize, max_len: usize, rng: &mut ThreadRng) -> Vec<usize> 
     let mut remaining = n;
 
     while remaining != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining)) + 1;
+        let l: usize = rng.gen_range(0..max_len.min(remaining)) + 1;
         distribution.push(l);
         remaining -= l;
     }
@@ -31,7 +31,7 @@ pub fn gen_distrib_pow_2(n: usize, max_bits: u8, rng: &mut ThreadRng) -> Vec<usi
     let mut remaining = n;
 
     while remaining != 0 {
-        let b: u8 = rng.gen_range(0, max_bits) + 1;
+        let b: u8 = rng.gen_range(0..max_bits) + 1;
         let l = 1usize << b;
         if l > remaining {
             continue;
@@ -67,8 +67,8 @@ where
         let n_i = l.next_power_of_two();
         let meta_buckets_counts = m / n_i;
 
-        let b_1: usize = rng.gen_range(0, meta_buckets_counts);
-        let b_2: usize = rng.gen_range(0, meta_buckets_counts);
+        let b_1: usize = rng.gen_range(0..meta_buckets_counts);
+        let b_2: usize = rng.gen_range(0..meta_buckets_counts);
 
         let slice_1: &[usize] = &buckets[(n_i * b_1)..(n_i * (b_1 + 1))];
         let count_b_1: usize = slice_1.iter().sum();
@@ -111,13 +111,13 @@ where
     let mut rng = thread_rng();
 
     while remaining_elements != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
+        let l: usize = rng.gen_range(0..max_len.min(remaining_elements)) + 1;
 
         let n_i = l.next_power_of_two();
         let meta_buckets_counts = m / n_i;
 
-        let b_1: usize = rng.gen_range(0, meta_buckets_counts);
-        let b_2: usize = rng.gen_range(0, meta_buckets_counts);
+        let b_1: usize = rng.gen_range(0..meta_buckets_counts);
+        let b_2: usize = rng.gen_range(0..meta_buckets_counts);
 
         let slice_1: &[usize] = &buckets[(n_i * b_1)..(n_i * (b_1 + 1))];
         let count_b_1: usize = slice_1.iter().sum();

@@ -429,12 +429,12 @@ fn generate_random_graph(n_vertices: usize, n_edges: usize) -> Graph {
     let mut rng = thread_rng();
 
     for i in 0..n_edges {
-        let s = rng.gen_range(0, n_vertices);
-        let mut e = rng.gen_range(0, n_vertices);
+        let s = rng.gen_range(0..n_vertices);
+        let mut e = rng.gen_range(0..n_vertices);
 
         while e == s {
             // avoid loops
-            e = rng.gen_range(0, n_vertices);
+            e = rng.gen_range(0..n_vertices);
         }
         graph.add_edge(i as u64, s, e, 1);
     }
@@ -492,10 +492,11 @@ where
     T: rand::Rng,
 {
     match loc_gen {
-        LocationGeneration::FullyRandom => (rng.gen_range(0, m), rng.gen_range(0, m)),
-        LocationGeneration::HalfRandom => {
-            (rng.gen_range(0, m / 2), m / 2 + rng.gen_range(0, m - m / 2))
-        }
+        LocationGeneration::FullyRandom => (rng.gen_range(0..m), rng.gen_range(0..m)),
+        LocationGeneration::HalfRandom => (
+            rng.gen_range(0..(m / 2)),
+            m / 2 + rng.gen_range(0..(m - m / 2)),
+        ),
     }
 }
 fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
@@ -512,7 +513,7 @@ fn generate_alloc_graph(params: MaxFlowAllocExperimentParams) -> (Graph, u64) {
     while remaining_elements != 0 {
         let l: usize = match params.generation_method {
             ListGenerationMethod::RandomGeneration => {
-                rng.gen_range(0, params.list_max_len.min(remaining_elements)) + 1
+                rng.gen_range(0..params.list_max_len.min(remaining_elements)) + 1
             }
             ListGenerationMethod::WorstCaseGeneration => {
                 params.list_max_len.min(remaining_elements)

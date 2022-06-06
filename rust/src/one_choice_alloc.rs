@@ -23,8 +23,8 @@ where
     let mut rng = thread_rng();
 
     while remaining_elements != 0 {
-        let l: usize = rng.gen_range(0, max_len.min(remaining_elements)) + 1;
-        let b: usize = rng.gen_range(0, m);
+        let l: usize = rng.gen_range(0..max_len.min(remaining_elements)) + 1;
+        let b: usize = rng.gen_range(0..m);
 
         for i in 0..l {
             buckets[(i + b) % m] += 1;
